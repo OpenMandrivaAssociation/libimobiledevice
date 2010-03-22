@@ -1,6 +1,6 @@
 %define name libimobiledevice
-%define version 0.9.7
-%define major 0
+%define version 1.0.0
+%define major 1
 %define libname %mklibname imobiledevice %major
 %define libnamedev %mklibname -d imobiledevice
 
@@ -81,11 +81,13 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING.LESSER README
-%{_datadir}/hal/fdi/information/20thirdparty/31-apple-mobile-device.fdi
 %{_bindir}/idevice_id
 %{_bindir}/ideviceinfo
 %{_bindir}/idevicesyslog
 %{_bindir}/idevicebackup
+%{_bindir}/ideviceimagemounter
+%{_bindir}/idevicescreenshot
+%doc %{_mandir}/man1/idevice*.1.lzma
 
 %files -n %libname
 %defattr(-,root,root)
