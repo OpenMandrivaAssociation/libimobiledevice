@@ -1,5 +1,5 @@
 %define name libimobiledevice
-%define version 1.0.0
+%define version 1.0.1
 %define major 1
 %define libname %mklibname imobiledevice %major
 %define libnamedev %mklibname -d imobiledevice
