@@ -1,5 +1,5 @@
 %define name libimobiledevice
-%define version 1.0.1
+%define version 1.0.2
 %define major 1
 %define libname %mklibname imobiledevice %major
 %define libnamedev %mklibname -d imobiledevice
@@ -83,6 +83,7 @@ rm -rf %{buildroot}
 %doc AUTHORS COPYING.LESSER README
 %{_bindir}/idevice_id
 %{_bindir}/ideviceinfo
+%{_bindir}/idevicepair
 %{_bindir}/idevicesyslog
 %{_bindir}/idevicebackup
 %{_bindir}/ideviceimagemounter
