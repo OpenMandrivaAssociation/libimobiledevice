@@ -6,7 +6,7 @@
 
 Name:           %{name}
 Version:        %{version}
-Release:        %mkrel 2
+Release:        %mkrel 3
 Summary:        Library for connecting to Apple iPhone and iPod touch
 
 Group:          System/Libraries
