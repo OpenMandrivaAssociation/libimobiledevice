@@ -6,7 +6,7 @@
 
 Name:           %{name}
 Version:        %{version}
-Release:        %mkrel 1
+Release:        %mkrel 2
 Summary:        Library for connecting to Apple iPhone and iPod touch
 
 Group:          System/Libraries
@@ -88,7 +88,7 @@ rm -rf %{buildroot}
 %{_bindir}/idevicebackup
 %{_bindir}/ideviceimagemounter
 %{_bindir}/idevicescreenshot
-%doc %{_mandir}/man1/idevice*.1.lzma
+%{_mandir}/man1/idevice*.1.*
 
 %files -n %libname
 %defattr(-,root,root)
