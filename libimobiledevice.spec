@@ -1,22 +1,18 @@
 %define name libimobiledevice
-%define version 1.0.2
+%define version 1.0.4
 %define major 1
 %define libname %mklibname imobiledevice %major
 %define libnamedev %mklibname -d imobiledevice
 
 Name:           %{name}
 Version:        %{version}
-Release:        %mkrel 3
+Release:        %mkrel 1
 Summary:        Library for connecting to Apple iPhone and iPod touch
-
 Group:          System/Libraries
 License:        LGPLv2+
 URL:            http://libimobiledevice.org/
-
-Source0:        http://cloud.github.com/downloads/MattColyer/%{name}/%{name}-%{version}.tar.bz2
+Source0:        http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
-
-
 BuildRequires: libtasn1-devel
 BuildRequires: libplist-devel
 BuildRequires: usbmuxd-devel >= 0.1.4
