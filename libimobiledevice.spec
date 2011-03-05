@@ -53,8 +53,6 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
-#%patch0 -p1
-#autoreconf -fi
 
 %build
 %configure2_5x
