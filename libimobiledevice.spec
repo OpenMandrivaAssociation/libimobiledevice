@@ -49,11 +49,11 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
+sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
 %configure2_5x \
 	--disable-static
-
 %make
 
 %install
@@ -83,4 +83,3 @@ find %{buildroot}%{_libdir} -name '*.la' -type f -delete -print
 
 %files -n python-imobiledevice
 %{python_sitearch}/imobiledevice/
-
