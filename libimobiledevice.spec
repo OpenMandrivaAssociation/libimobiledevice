@@ -1,5 +1,5 @@
-%define major 1
-%define libname %mklibname imobiledevice %major
+%define major 2
+%define libname %mklibname imobiledevice %{major}
 %define develname %mklibname -d imobiledevice
 
 Name:           libimobiledevice
