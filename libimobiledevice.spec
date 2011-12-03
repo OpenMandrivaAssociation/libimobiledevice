@@ -58,6 +58,7 @@ Python bindings for libimobiledevice.
 %prep
 %setup -q
 %apply_patches
+sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
 %configure2_5x \
