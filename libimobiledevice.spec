@@ -73,6 +73,8 @@ find %{buildroot}%{_libdir} -name '*.la' -type f -delete -print
 
 %files
 %doc AUTHORS COPYING.LESSER README
+%{_bindir}/idevicebackup2
+%{_bindir}/idevicedate
 %{_bindir}/idevice_id
 %{_bindir}/ideviceinfo
 %{_bindir}/idevicepair
