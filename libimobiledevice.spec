@@ -2,28 +2,23 @@
 %define libname %mklibname imobiledevice %{major}
 %define develname %mklibname -d imobiledevice
 
-Name:           libimobiledevice
-Version:        1.1.2
-Release:        1
-Summary:        Library for connecting to Apple iPhone and iPod touch
-Group:          System/Libraries
-License:        LGPLv2+
-URL:            http://libimobiledevice.org/
-Source0:        http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
+Name:		libimobiledevice
+Version:	1.1.2
+Release:	1
+Summary:	Library for connecting to Apple iPhone and iPod touch
+Group:		System/Libraries
+License:	LGPLv2+
+URL:		http://libimobiledevice.org/
+Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
 
-# http://cgit.sukimashita.com/libimobiledevice.git/commit/?id=6dccecddf012a0a404d121cc2c42ddce7c485fb7
-# enable once gnutls >= 2.2.0
-#Patch0: 0001-Remove-deprecated-gnutls_-_set_priority-and-use-gnut.patch
-# http://cgit.sukimashita.com/libimobiledevice.git/commit/?id=f0487376671ffd6ac3fc121657f1fbd0acea3cb0
-# http://cgit.sukimashita.com/libimobiledevice.git/commit/?id=e855f246b3d869a60375207fde1294bbe761fe23
-BuildRequires: libtasn1-devel
-BuildRequires: libplist-devel
-BuildRequires: usbmuxd-devel >= 0.1.4
-BuildRequires: glib2-devel
-BuildRequires: gnutls-devel
-BuildRequires: python-devel
-BuildRequires: swig
-BuildRequires: libplist++-devel
+BuildRequires:	libtasn1-devel
+BuildRequires:	libplist-devel
+BuildRequires:	usbmuxd-devel >= 0.1.4
+BuildRequires:	glib2-devel
+BuildRequires:	gnutls-devel
+BuildRequires:	python-devel
+BuildRequires:	swig
+BuildRequires:	libplist++-devel
 
 %description
 libimobiledevice is a library for connecting to Apple's iPhone or iPod touch devices
