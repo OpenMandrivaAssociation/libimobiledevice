@@ -1,9 +1,9 @@
-%define major 2
+%define major 3
 %define libname %mklibname imobiledevice %{major}
 %define develname %mklibname -d imobiledevice
 
 Name:           libimobiledevice
-Version:        1.1.1
+Version:        1.1.2
 Release:        1
 Summary:        Library for connecting to Apple iPhone and iPod touch
 Group:          System/Libraries
@@ -15,10 +15,7 @@ Source0:        http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar
 # enable once gnutls >= 2.2.0
 #Patch0: 0001-Remove-deprecated-gnutls_-_set_priority-and-use-gnut.patch
 # http://cgit.sukimashita.com/libimobiledevice.git/commit/?id=f0487376671ffd6ac3fc121657f1fbd0acea3cb0
-Patch1: 0001-lockdown-fix-support-for-iOS-5.patch
 # http://cgit.sukimashita.com/libimobiledevice.git/commit/?id=e855f246b3d869a60375207fde1294bbe761fe23
-Patch2: 0001-lockdown-iOS-5-handle-Error-key-in-lockdown_check_re.patch
-
 BuildRequires: libtasn1-devel
 BuildRequires: libplist-devel
 BuildRequires: usbmuxd-devel >= 0.1.4
@@ -57,7 +54,6 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
-%apply_patches
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
@@ -94,5 +90,4 @@ find %{buildroot}%{_libdir} -name '*.la' -type f -delete -print
 %{_includedir}/libimobiledevice
 
 %files -n python-imobiledevice
-%{python_sitearch}/imobiledevice/
-
+%{python_sitearch}/imobiledevice*
