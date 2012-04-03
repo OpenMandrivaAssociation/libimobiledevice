@@ -21,14 +21,16 @@ BuildRequires:	swig
 BuildRequires:	libplist++-devel
 
 %description
-libimobiledevice is a library for connecting to Apple's iPhone or iPod touch devices
+libimobiledevice is a library for connecting
+to Apple's iPhone or iPod touch devices
 
 %package -n %{libname}
 Group: System/Libraries
 Summary: Library for connecting to Apple iPhone and iPod touch
 
 %description -n %{libname}
-libimobiledevice is a library for connecting to Apple's iPhone or iPod touch devices
+libimobiledevice is a library for connecting
+to Apple's iPhone or iPod touch devices
 
 %package -n %{develname}
 Summary: Development package for libimobiledevice
