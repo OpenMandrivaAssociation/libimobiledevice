@@ -3,7 +3,7 @@
 %define develname %mklibname -d imobiledevice
 
 Name:		libimobiledevice
-Version:	1.1.2
+Version:	1.1.4
 Release:	1
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Group:		System/Libraries
@@ -13,7 +13,7 @@ Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
 
 BuildRequires:	libtasn1-devel
 BuildRequires:	libplist-devel
-BuildRequires:	usbmuxd-devel >= 0.1.4
+BuildRequires:	usbmuxd-devel >= 1.0.8
 BuildRequires:	glib2-devel
 BuildRequires:	gnutls-devel
 BuildRequires:	python-devel
@@ -87,4 +87,4 @@ find %{buildroot}%{_libdir} -name '*.la' -type f -delete -print
 %{_includedir}/libimobiledevice
 
 %files -n python-imobiledevice
-%{python_sitearch}/imobiledevice*
+#%{python_sitearch}/imobiledevice*
