@@ -17,6 +17,7 @@ BuildRequires:	usbmuxd-devel >= 1.0.8
 BuildRequires:	glib2-devel
 BuildRequires:	gnutls-devel
 BuildRequires:	python-devel
+BuildRequires:	pkgconfig(openssl)
 BuildRequires:	swig
 BuildRequires:	libplist++-devel
 
