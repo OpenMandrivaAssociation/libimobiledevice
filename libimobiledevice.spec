@@ -1,10 +1,10 @@
-%define major 3
+%define major 4
 %define libname %mklibname imobiledevice %{major}
 %define develname %mklibname -d imobiledevice
 
 Name:		libimobiledevice
-Version:	1.1.4
-Release:	2
+Version:	1.1.5
+Release:	1
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Group:		System/Libraries
 License:	LGPLv2+
@@ -19,6 +19,7 @@ BuildRequires:	pkgconfig(glib-2.0)
 BuildRequires:	pkgconfig(gnutls)
 BuildRequires:	pkgconfig(openssl)
 BuildRequires:	python-devel
+BuildRequires:	python-cython
 BuildRequires:	swig
 
 %description
@@ -69,6 +70,9 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_bindir}/idevicebackup2
 %{_bindir}/idevicedate
 %{_bindir}/idevice_id
+%{_bindir}/idevicedebugserverproxy
+%{_bindir}/idevicediagnostics
+%{_bindir}/ideviceprovision
 %{_bindir}/ideviceinfo
 %{_bindir}/idevicepair
 %{_bindir}/ideviceenterrecovery
@@ -87,7 +91,7 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_includedir}/libimobiledevice
 
 %files -n python-imobiledevice
-#%{python_sitearch}/imobiledevice*
+%{python_sitearch}/imobiledevice*
 
 
 %changelog
