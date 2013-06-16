@@ -5,7 +5,7 @@
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
 Version:	1.1.5
-Release:	1
+Release:	2
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
@@ -82,7 +82,7 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_mandir}/man1/idevice*.1.*
 
 %files -n %{libname}
-%{_libdir}/libmobiledevice.so.%{major}*
+%{_libdir}/libimobiledevice.so.%{major}*
 
 %files -n %{devname}
 %{_libdir}/pkgconfig/libimobiledevice-1.0.pc
