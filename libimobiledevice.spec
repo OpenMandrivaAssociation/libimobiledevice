@@ -47,7 +47,7 @@ Files for development with libimobiledevice.
 %package -n python-imobiledevice
 Summary:	Python bindings for libimobiledevice
 Group:		Development/Python
-%py_requires -d
+#% py_requires -d
 
 %description -n python-imobiledevice
 Python bindings for libimobiledevice.
