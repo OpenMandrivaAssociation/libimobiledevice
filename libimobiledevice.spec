@@ -1,11 +1,11 @@
-%define major	4
+%define major 4
 %define libname %mklibname imobiledevice %{major}
 %define devname %mklibname -d imobiledevice
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
 Version:	1.1.5
-Release:	6
+Release:	7
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
@@ -47,7 +47,6 @@ Files for development with libimobiledevice.
 %package -n python-imobiledevice
 Summary:	Python bindings for libimobiledevice
 Group:		Development/Python
-#% py_requires -d
 
 %description -n python-imobiledevice
 Python bindings for libimobiledevice.
