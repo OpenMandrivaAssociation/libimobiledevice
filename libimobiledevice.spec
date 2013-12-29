@@ -1,4 +1,4 @@
-%define major	4
+%define major 4
 %define libname %mklibname imobiledevice %{major}
 %define devname %mklibname -d imobiledevice
 
@@ -47,7 +47,6 @@ Files for development with libimobiledevice.
 %package -n python-imobiledevice
 Summary:	Python bindings for libimobiledevice
 Group:		Development/Python
-#% py_requires -d
 
 %description -n python-imobiledevice
 Python bindings for libimobiledevice.
