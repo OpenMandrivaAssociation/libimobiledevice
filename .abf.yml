@@ -1,4 +1,5 @@
 removed_sources:
   libimobiledevice-1.1.4.tar.bz2: d59d9751d9f792e8674cd87c91005d431bf56065
-sources:
   libimobiledevice-1.1.5.tar.bz2: 1c2ce186787fe661d2ef5a1be170ddbe5f85db77
+sources:
+  libimobiledevice-1.1.6.tar.bz2: 3016bf1241bc5a77a621c49d82d71bb8f32905e4
