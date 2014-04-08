@@ -10,7 +10,6 @@ Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
 Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
-Patch0:		cast_ssl_enabled_lockdown.patch
 
 BuildRequires:	python-cython
 BuildRequires:	swig
@@ -53,7 +52,7 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
-%apply_patches
+
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
