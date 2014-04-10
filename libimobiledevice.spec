@@ -79,6 +79,8 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_bindir}/idevicebackup
 %{_bindir}/ideviceimagemounter
 %{_bindir}/idevicescreenshot
+%{_bindir}/idevicecrashreport
+%{_bindir}/idevicename
 %{_mandir}/man1/idevice*.1.*
 
 %files -n %{libname}
