@@ -11,7 +11,7 @@ License:	LGPLv2+
 Url:		http://libimobiledevice.org/
 Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
 
-BuildRequires:	python-cython
+BuildRequires:	python-cython python-plist
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
 BuildRequires:	pkgconfig(gnutls)
