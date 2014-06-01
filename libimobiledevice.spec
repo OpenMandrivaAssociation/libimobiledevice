@@ -56,7 +56,7 @@ Python bindings for libimobiledevice.
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
-%configure2_5x \
+%configure \
 	--disable-static
 
 %make
@@ -93,4 +93,3 @@ sed -i 's#1.3.21#2.0.0#g' configure
 
 %files -n python-imobiledevice
 %{python_sitearch}/imobiledevice*
-
