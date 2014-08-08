@@ -20,7 +20,7 @@ BuildRequires:	pkgconfig(libplist++)
 BuildRequires:	pkgconfig(libtasn1)
 BuildRequires:	pkgconfig(libusbmuxd)
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	pkgconfig(python)
+BuildRequires:	pkgconfig(python2)
 
 %description
 libimobiledevice is a library for connecting
