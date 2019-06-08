@@ -6,12 +6,14 @@
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
 Version:	1.2.0
-Release:	6
+Release:	11
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
 Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
-
+Patch1:		344409e1d1ad917d377b256214c5411dda82e6b0...5a85432719fb3d18027d528f87d2a44b76fd3e12.patch
+Patch2:		0001-userpref-GnuTLS-Fix-3.6.0-SHA1-compatibility.patch
+Patch3:		0002-userpref-GnuTLS-Use-valid-serial-for-3.6.0.patch
 BuildRequires:	python-cython
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
@@ -53,13 +55,14 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
+%apply_patches
 
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
 %configure
 
-%make
+%make -j1
 
 %install
 %makeinstall_std

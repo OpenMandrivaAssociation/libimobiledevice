@@ -1,0 +1,47 @@
+From 0994996671d98b67d576ebe4a7b1314a61411066 Mon Sep 17 00:00:00 2001
+From: Bastien Nocera <hadess@hadess.net>
+Date: Fri, 15 Sep 2017 16:00:09 +0200
+Subject: [PATCH 1/2] userpref: [GnuTLS] Fix 3.6.0 SHA1 compatibility
+
+Verification will fail if a special flag is not passed. Use
+gnutls_x509_crt_sign2() instead of gnutls_x509_crt_sign() to make
+sure that passing this flag works in 3.6.0 and stays working with
+3.6.1.
+---
+ common/userpref.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/common/userpref.c b/common/userpref.c
+index 3ae503a..f496fee 100644
+--- a/common/userpref.c
++++ b/common/userpref.c
+@@ -603,7 +603,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 	gnutls_x509_crt_set_ca_status(root_cert, 1);
+ 	gnutls_x509_crt_set_activation_time(root_cert, time(NULL));
+ 	gnutls_x509_crt_set_expiration_time(root_cert, time(NULL) + (60 * 60 * 24 * 365 * 10));
+-	gnutls_x509_crt_sign(root_cert, root_cert, root_privkey);
++	gnutls_x509_crt_sign2(root_cert, root_cert, root_privkey, GNUTLS_DIG_SHA1, 0);
+ 
+ 	gnutls_x509_crt_set_key(host_cert, host_privkey);
+ 	gnutls_x509_crt_set_serial(host_cert, "\x00", 1);
+@@ -612,7 +612,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 	gnutls_x509_crt_set_key_usage(host_cert, GNUTLS_KEY_KEY_ENCIPHERMENT | GNUTLS_KEY_DIGITAL_SIGNATURE);
+ 	gnutls_x509_crt_set_activation_time(host_cert, time(NULL));
+ 	gnutls_x509_crt_set_expiration_time(host_cert, time(NULL) + (60 * 60 * 24 * 365 * 10));
+-	gnutls_x509_crt_sign(host_cert, root_cert, root_privkey);
++	gnutls_x509_crt_sign2(host_cert, root_cert, root_privkey, GNUTLS_DIG_SHA1, 0);
+ 
+ 	/* export to PEM format */
+ 	size_t root_key_export_size = 0;
+@@ -720,7 +720,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 			}
+ 
+ 			gnutls_x509_crt_set_key_usage(dev_cert, GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT);
+-			gnutls_error = gnutls_x509_crt_sign(dev_cert, root_cert, root_privkey);
++			gnutls_error = gnutls_x509_crt_sign2(dev_cert, root_cert, root_privkey, GNUTLS_DIG_SHA1, 0);
+ 			if (GNUTLS_E_SUCCESS == gnutls_error) {
+ 				/* if everything went well, export in PEM format */
+ 				size_t export_size = 0;
+-- 
+2.14.1
+
