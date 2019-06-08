@@ -1,0 +1,45 @@
+From 3c1ca82ba31945de4e673525afb4774189011ce4 Mon Sep 17 00:00:00 2001
+From: Bastien Nocera <hadess@hadess.net>
+Date: Fri, 15 Sep 2017 16:02:42 +0200
+Subject: [PATCH 2/2] userpref: [GnuTLS] Use valid serial for >= 3.6.0
+
+Another change in 3.6.0 is that a serial of '\0' is not valid anymore.
+Bump it to one.
+---
+ common/userpref.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/common/userpref.c b/common/userpref.c
+index f496fee..be745cb 100644
+--- a/common/userpref.c
++++ b/common/userpref.c
+@@ -598,7 +598,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 
+ 	/* generate certificates */
+ 	gnutls_x509_crt_set_key(root_cert, root_privkey);
+-	gnutls_x509_crt_set_serial(root_cert, "\x00", 1);
++	gnutls_x509_crt_set_serial(root_cert, "\x01", 1);
+ 	gnutls_x509_crt_set_version(root_cert, 3);
+ 	gnutls_x509_crt_set_ca_status(root_cert, 1);
+ 	gnutls_x509_crt_set_activation_time(root_cert, time(NULL));
+@@ -606,7 +606,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 	gnutls_x509_crt_sign2(root_cert, root_cert, root_privkey, GNUTLS_DIG_SHA1, 0);
+ 
+ 	gnutls_x509_crt_set_key(host_cert, host_privkey);
+-	gnutls_x509_crt_set_serial(host_cert, "\x00", 1);
++	gnutls_x509_crt_set_serial(host_cert, "\x01", 1);
+ 	gnutls_x509_crt_set_version(host_cert, 3);
+ 	gnutls_x509_crt_set_ca_status(host_cert, 0);
+ 	gnutls_x509_crt_set_key_usage(host_cert, GNUTLS_KEY_KEY_ENCIPHERMENT | GNUTLS_KEY_DIGITAL_SIGNATURE);
+@@ -703,7 +703,7 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 		if (GNUTLS_E_SUCCESS == gnutls_error) {
+ 			/* now generate device certificate */
+ 			gnutls_x509_crt_set_key(dev_cert, fake_privkey);
+-			gnutls_x509_crt_set_serial(dev_cert, "\x00", 1);
++			gnutls_x509_crt_set_serial(dev_cert, "\x01", 1);
+ 			gnutls_x509_crt_set_version(dev_cert, 3);
+ 			gnutls_x509_crt_set_ca_status(dev_cert, 0);
+ 			gnutls_x509_crt_set_activation_time(dev_cert, time(NULL));
+-- 
+2.14.1
+

@@ -1,0 +1,5313 @@
+From 1ff3448d2e27f1bac8d2f0af8b8e952854860278 Mon Sep 17 00:00:00 2001
+From: Martin Szulecki <martin.szulecki@libimobiledevice.org>
+Date: Thu, 29 Jan 2015 22:21:27 +0100
+Subject: [PATCH 01/65] m4: Use python-config if available to fix Python 3
+ support on newer distros
+
+---
+ m4/ac_python_devel.m4 | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/m4/ac_python_devel.m4 b/m4/ac_python_devel.m4
+index 2e7406e..545c607 100644
+--- a/m4/ac_python_devel.m4
++++ b/m4/ac_python_devel.m4
+@@ -151,6 +151,9 @@ $ac_distutils_result])
+ 	# Check for Python include path
+ 	#
+ 	AC_MSG_CHECKING([for Python include path])
++	if type $PYTHON-config; then
++		PYTHON_CPPFLAGS=`$PYTHON-config --includes`
++	fi
+ 	if test -z "$PYTHON_CPPFLAGS"; then
+ 		python_path=`$PYTHON -c "import distutils.sysconfig; \
+ 			print(distutils.sysconfig.get_python_inc());"`
+@@ -166,6 +169,9 @@ $ac_distutils_result])
+ 	# Check for Python library path
+ 	#
+ 	AC_MSG_CHECKING([for Python library path])
++	if type $PYTHON-config; then
++		PYTHON_LDFLAGS=`$PYTHON-config --ldflags`
++	fi
+ 	if test -z "$PYTHON_LDFLAGS"; then
+ 		# (makes two attempts to ensure we've got a version number
+ 		# from the interpreter)
+-- 
+2.14.1
+
+
+From 65def891530879ffe9b45c1ccee64a6bed1ea93f Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 24 May 2015 00:12:48 +0200
+Subject: [PATCH 02/65] lockdown: Remove unneeded plist_free() calls since
+ entire dict is freed later
+
+---
+ src/lockdown.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/lockdown.c b/src/lockdown.c
+index d1296c9..7cb3091 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -960,8 +960,6 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 					if (extra_node && plist_get_node_type(extra_node) == PLIST_DATA) {
+ 						debug_info("Saving EscrowBag from response in pair record");
+ 						plist_dict_set_item(pair_record_plist, USERPREF_ESCROW_BAG_KEY, plist_copy(extra_node));
+-						plist_free(extra_node);
+-						extra_node = NULL;
+ 					}
+ 
+ 					/* save previously retrieved wifi mac address in pair record */
+@@ -991,9 +989,6 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 				ret = lockdownd_strtoerr(value);
+ 				free(value);
+ 			}
+-
+-			plist_free(error_node);
+-			error_node = NULL;
+ 		}
+ 	}
+ 
+-- 
+2.14.1
+
+
+From e1cac25e632955da0c3aeb2f16f49c5a1687f81c Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 10 Jul 2015 03:03:23 +0200
+Subject: [PATCH 03/65] lockdown: Add more error codes
+
+---
+ cython/lockdown.pxi                 |  8 ++++++++
+ include/libimobiledevice/lockdown.h |  4 ++++
+ src/lockdown.c                      | 10 +++++++++-
+ 3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/cython/lockdown.pxi b/cython/lockdown.pxi
+index 7d903d6..c8d511e 100644
+--- a/cython/lockdown.pxi
++++ b/cython/lockdown.pxi
+@@ -38,6 +38,10 @@ cdef extern from "libimobiledevice/lockdown.h":
+         LOCKDOWN_E_MISSING_ACTIVATION_RECORD
+         LOCKDOWN_E_SERVICE_PROHIBITED
+         LOCKDOWN_E_ESCROW_LOCKED
++        LOCKDOWN_E_PAIRING_PROHIBITED_OVER_THIS_CONNECTION
++        LOCKDOWN_E_FMIP_PROTECTED
++        LOCKDOWN_E_MC_PROTECTED
++        LOCKDOWN_E_MC_CHALLENGE_REQUIRED
+         LOCKDOWN_E_UNKNOWN_ERROR
+ 
+     lockdownd_error_t lockdownd_client_new(idevice_t device, lockdownd_client_t *client, char *label)
+@@ -103,6 +107,10 @@ cdef class LockdownError(BaseError):
+             LOCKDOWN_E_MISSING_ACTIVATION_RECORD: "Missing activation record",
+             LOCKDOWN_E_SERVICE_PROHIBITED: "Service prohibited",
+             LOCKDOWN_E_ESCROW_LOCKED: "Escrow locked",
++            LOCKDOWN_E_PAIRING_PROHIBITED_OVER_THIS_CONNECTION: "Pairing prohibited over this connection",
++            LOCKDOWN_E_FMIP_PROTECTED: "Find My iPhone/iPod/iPad protected",
++            LOCKDOWN_E_MC_PROTECTED: "MC protected",
++            LOCKDOWN_E_MC_CHALLENGE_REQUIRED: "MC challenge required",
+             LOCKDOWN_E_UNKNOWN_ERROR: "Unknown error"
+         }
+         BaseError.__init__(self, *args, **kwargs)
+diff --git a/include/libimobiledevice/lockdown.h b/include/libimobiledevice/lockdown.h
+index 076fa9d..46792a6 100644
+--- a/include/libimobiledevice/lockdown.h
++++ b/include/libimobiledevice/lockdown.h
+@@ -73,6 +73,10 @@ typedef enum {
+ 	LOCKDOWN_E_MISSING_ACTIVATION_RECORD               = -33,
+ 	LOCKDOWN_E_SERVICE_PROHIBITED                      = -34,
+ 	LOCKDOWN_E_ESCROW_LOCKED                           = -35,
++	LOCKDOWN_E_PAIRING_PROHIBITED_OVER_THIS_CONNECTION = -36,
++	LOCKDOWN_E_FMIP_PROTECTED                          = -37,
++	LOCKDOWN_E_MC_PROTECTED                            = -38,
++	LOCKDOWN_E_MC_CHALLENGE_REQUIRED                   = -39,
+ 	LOCKDOWN_E_UNKNOWN_ERROR                           = -256
+ } lockdownd_error_t;
+ 
+diff --git a/src/lockdown.c b/src/lockdown.c
+index 7cb3091..026d1d1 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -3,7 +3,7 @@
+  * com.apple.mobile.lockdownd service implementation.
+  *
+  * Copyright (c) 2009-2015 Martin Szulecki All Rights Reserved.
+- * Copyright (c) 2014 Nikias Bassen. All Rights Reserved.
++ * Copyright (c) 2014-2015 Nikias Bassen All Rights Reserved.
+  * Copyright (c) 2010 Bryan Forbes All Rights Reserved.
+  * Copyright (c) 2008 Zach C. All Rights Reserved.
+  *
+@@ -122,6 +122,14 @@ static lockdownd_error_t lockdownd_strtoerr(const char* name)
+ 		err = LOCKDOWN_E_SERVICE_PROHIBITED;
+ 	} else if (strcmp(name, "EscrowLocked") == 0) {
+ 		err = LOCKDOWN_E_ESCROW_LOCKED;
++	} else if (strcmp(name, "PairingProhibitedOverThisConnection") == 0) {
++		err = LOCKDOWN_E_PAIRING_PROHIBITED_OVER_THIS_CONNECTION;
++	} else if (strcmp(name, "FMiPProtected") == 0) {
++		err = LOCKDOWN_E_FMIP_PROTECTED;
++	} else if (strcmp(name, "MCProtected") == 0) {
++		err = LOCKDOWN_E_MC_PROTECTED;
++	} else if (strcmp(name, "MCChallengeRequired") == 0) {
++		err = LOCKDOWN_E_MC_CHALLENGE_REQUIRED;
+ 	}
+ 
+ 	return err;
+-- 
+2.14.1
+
+
+From f268393d4e447ac901879bee751d7350c495fed2 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 15 Jul 2015 07:22:37 +0200
+Subject: [PATCH 04/65] lockdown: Add new lockdownd_pair_with_options()
+ function
+
+---
+ include/libimobiledevice/lockdown.h | 19 +++++++++++++++++++
+ src/lockdown.c                      | 37 ++++++++++++++++++++++++++++---------
+ 2 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/include/libimobiledevice/lockdown.h b/include/libimobiledevice/lockdown.h
+index 46792a6..0e48eef 100644
+--- a/include/libimobiledevice/lockdown.h
++++ b/include/libimobiledevice/lockdown.h
+@@ -295,6 +295,25 @@ lockdownd_error_t lockdownd_receive(lockdownd_client_t client, plist_t *plist);
+  */
+ lockdownd_error_t lockdownd_pair(lockdownd_client_t client, lockdownd_pair_record_t pair_record);
+ 
++ /**
++ * Pairs the device using the supplied pair record and passing the given options.
++ *
++ * @param client The lockdown client
++ * @param pair_record The pair record to use for pairing. If NULL is passed, then
++ *    the pair records from the current machine are used. New records will be
++ *    generated automatically when pairing is done for the first time.
++ * @param options The pairing options to pass. Can be NULL for no options.
++ * @param response If non-NULL a pointer to lockdownd's response dictionary is returned.
++ *    The caller is responsible to free the response dictionary with plist_free().
++ *
++ * @return LOCKDOWN_E_SUCCESS on success, LOCKDOWN_E_INVALID_ARG when client is NULL,
++ *  LOCKDOWN_E_PLIST_ERROR if the pair_record certificates are wrong,
++ *  LOCKDOWN_E_PAIRING_FAILED if the pairing failed,
++ *  LOCKDOWN_E_PASSWORD_PROTECTED if the device is password protected,
++ *  LOCKDOWN_E_INVALID_HOST_ID if the device does not know the caller's host id
++ */
++lockdownd_error_t lockdownd_pair_with_options(lockdownd_client_t client, lockdownd_pair_record_t pair_record, plist_t options, plist_t *response);
++
+ /**
+  * Validates if the device is paired with the given HostID. If successful the
+  * specified host will become trusted host of the device indicated by the
+diff --git a/src/lockdown.c b/src/lockdown.c
+index 026d1d1..85124bd 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -848,6 +848,8 @@ leave:
+  *    the pair records from the current machine are used. New records will be
+  *    generated automatically when pairing is done for the first time.
+  * @param verb This is either "Pair", "ValidatePair" or "Unpair".
++ * @param options The pairing options to pass.
++ * @param response If non-NULL a pointer to lockdownd's response dictionary is returned.
+  *
+  * @return LOCKDOWN_E_SUCCESS on success, NP_E_INVALID_ARG when client is NULL,
+  *  LOCKDOWN_E_PLIST_ERROR if the pair_record certificates are wrong,
+@@ -855,7 +857,7 @@ leave:
+  *  LOCKDOWN_E_PASSWORD_PROTECTED if the device is password protected,
+  *  LOCKDOWN_E_INVALID_HOST_ID if the device does not know the caller's host id
+  */
+-static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_pair_record_t pair_record, const char *verb)
++static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_pair_record_t pair_record, const char *verb, plist_t options, plist_t *result)
+ {
+ 	if (!client)
+ 		return LOCKDOWN_E_INVALID_ARG;
+@@ -915,9 +917,9 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 	plist_dict_set_item(dict, "Request", plist_new_string(verb));
+ 	plist_dict_set_item(dict, "ProtocolVersion", plist_new_string(LOCKDOWN_PROTOCOL_VERSION));
+ 
+-	plist_t options = plist_new_dict();
+-	plist_dict_set_item(options, "ExtendedPairingErrors", plist_new_bool(1));
+-	plist_dict_set_item(dict, "PairingOptions", options);
++	if (options) {
++		plist_dict_set_item(dict, "PairingOptions", plist_copy(options));
++	}
+ 
+ 	/* send to device */
+ 	ret = lockdownd_send(client, dict);
+@@ -1010,25 +1012,42 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 		wifi_node = NULL;
+ 	}
+ 
+-	plist_free(dict);
+-	dict = NULL;
++	if (result) {
++		*result = dict;
++	} else {
++		plist_free(dict);
++		dict = NULL;
++	}
+ 
+ 	return ret;
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_pair(lockdownd_client_t client, lockdownd_pair_record_t pair_record)
+ {
+-	return lockdownd_do_pair(client, pair_record, "Pair");
++
++	plist_t options = plist_new_dict();
++	plist_dict_set_item(options, "ExtendedPairingErrors", plist_new_bool(1));
++
++	lockdownd_error_t ret = lockdownd_do_pair(client, pair_record, "Pair", options, NULL);
++
++	plist_free(options);
++
++	return ret;
++}
++
++LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_pair_with_options(lockdownd_client_t client, lockdownd_pair_record_t pair_record, plist_t options, plist_t *response)
++{
++	return lockdownd_do_pair(client, pair_record, "Pair", options, response);
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_validate_pair(lockdownd_client_t client, lockdownd_pair_record_t pair_record)
+ {
+-	return lockdownd_do_pair(client, pair_record, "ValidatePair");
++	return lockdownd_do_pair(client, pair_record, "ValidatePair", NULL, NULL);
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_unpair(lockdownd_client_t client, lockdownd_pair_record_t pair_record)
+ {
+-	return lockdownd_do_pair(client, pair_record, "Unpair");
++	return lockdownd_do_pair(client, pair_record, "Unpair", NULL, NULL);
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_enter_recovery(lockdownd_client_t client)
+-- 
+2.14.1
+
+
+From 2d5c2195bbdcc02774fa3f70a23759b3cb8b4aed Mon Sep 17 00:00:00 2001
+From: Martin Szulecki <martin.szulecki@libimobiledevice.org>
+Date: Tue, 6 Oct 2015 22:07:56 +0200
+Subject: [PATCH 05/65] Add missing "(void)" to functions to match public
+ headers
+
+---
+ src/idevice.c            | 2 +-
+ src/installation_proxy.c | 2 +-
+ src/mobilesync.c         | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index ce27495..7c33cdd 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -168,7 +168,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_event_subscribe(idevice_event_cb_t
+ 	return IDEVICE_E_SUCCESS;
+ }
+ 
+-LIBIMOBILEDEVICE_API idevice_error_t idevice_event_unsubscribe()
++LIBIMOBILEDEVICE_API idevice_error_t idevice_event_unsubscribe(void)
+ {
+ 	event_cb = NULL;
+ 	int res = usbmuxd_unsubscribe();
+diff --git a/src/installation_proxy.c b/src/installation_proxy.c
+index e858e58..8bde154 100644
+--- a/src/installation_proxy.c
++++ b/src/installation_proxy.c
+@@ -914,7 +914,7 @@ LIBIMOBILEDEVICE_API void instproxy_command_get_name(plist_t command, char** nam
+ 	}
+ }
+ 
+-LIBIMOBILEDEVICE_API plist_t instproxy_client_options_new()
++LIBIMOBILEDEVICE_API plist_t instproxy_client_options_new(void)
+ {
+ 	return plist_new_dict();
+ }
+diff --git a/src/mobilesync.c b/src/mobilesync.c
+index 06fb1c1..d903cfe 100644
+--- a/src/mobilesync.c
++++ b/src/mobilesync.c
+@@ -739,7 +739,7 @@ LIBIMOBILEDEVICE_API void mobilesync_anchors_free(mobilesync_anchors_t anchors)
+ 	anchors = NULL;
+ }
+ 
+-LIBIMOBILEDEVICE_API plist_t mobilesync_actions_new()
++LIBIMOBILEDEVICE_API plist_t mobilesync_actions_new(void)
+ {
+ 	return plist_new_dict();
+ }
+-- 
+2.14.1
+
+
+From d93043e6243e691a17135b221dd9275c10f8edbc Mon Sep 17 00:00:00 2001
+From: Martin Szulecki <martin.szulecki@libimobiledevice.org>
+Date: Tue, 6 Oct 2015 22:10:56 +0200
+Subject: [PATCH 06/65] tools: Use PACKAGE_URL define for homepage project
+ links in usage output
+
+---
+ tools/idevice_id.c               | 6 +++++-
+ tools/idevicebackup.c            | 2 +-
+ tools/idevicebackup2.c           | 6 +++++-
+ tools/idevicecrashreport.c       | 6 +++++-
+ tools/idevicedate.c              | 6 +++++-
+ tools/idevicedebug.c             | 6 +++++-
+ tools/idevicedebugserverproxy.c  | 6 +++++-
+ tools/idevicediagnostics.c       | 6 +++++-
+ tools/ideviceenterrecovery.c     | 6 +++++-
+ tools/ideviceimagemounter.c      | 6 +++++-
+ tools/ideviceinfo.c              | 6 +++++-
+ tools/idevicename.c              | 6 +++++-
+ tools/idevicenotificationproxy.c | 6 +++++-
+ tools/idevicepair.c              | 6 +++++-
+ tools/ideviceprovision.c         | 7 ++++++-
+ tools/idevicescreenshot.c        | 6 +++++-
+ tools/idevicesyslog.c            | 6 +++++-
+ 17 files changed, 82 insertions(+), 17 deletions(-)
+
+diff --git a/tools/idevice_id.c b/tools/idevice_id.c
+index 9629f8b..6f020ff 100644
+--- a/tools/idevice_id.c
++++ b/tools/idevice_id.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -42,7 +46,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -d, --debug\t\tenable communication debugging\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char **argv)
+diff --git a/tools/idevicebackup.c b/tools/idevicebackup.c
+index eefaa6f..2619cc9 100644
+--- a/tools/idevicebackup.c
++++ b/tools/idevicebackup.c
+@@ -674,7 +674,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index ead4dba..934cf39 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -20,6 +20,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -1139,7 +1143,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -i, --interactive\trequest passwords interactively\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/idevicecrashreport.c b/tools/idevicecrashreport.c
+index b74a660..7ac9baf 100644
+--- a/tools/idevicecrashreport.c
++++ b/tools/idevicecrashreport.c
+@@ -20,6 +20,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -298,7 +302,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char* argv[]) {
+diff --git a/tools/idevicedate.c b/tools/idevicedate.c
+index f6bed7a..97243bb 100644
+--- a/tools/idevicedate.c
++++ b/tools/idevicedate.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -51,7 +55,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -c, --sync\t\tset time of device to current system time\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/idevicedebug.c b/tools/idevicedebug.c
+index 6a30ec4..b00893d 100644
+--- a/tools/idevicedebug.c
++++ b/tools/idevicedebug.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <signal.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -188,7 +192,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -d, --debug\t\tenable communication debugging\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/idevicedebugserverproxy.c b/tools/idevicedebugserverproxy.c
+index 28bba5e..f270cdc 100644
+--- a/tools/idevicedebugserverproxy.c
++++ b/tools/idevicedebugserverproxy.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -70,7 +74,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ static void *thread_device_to_client(void *data)
+diff --git a/tools/idevicediagnostics.c b/tools/idevicediagnostics.c
+index 992bc0a..8b6569d 100644
+--- a/tools/idevicediagnostics.c
++++ b/tools/idevicediagnostics.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -296,5 +300,5 @@ void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+diff --git a/tools/ideviceenterrecovery.c b/tools/ideviceenterrecovery.c
+index 3069be8..21c4ff6 100644
+--- a/tools/ideviceenterrecovery.c
++++ b/tools/ideviceenterrecovery.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -37,7 +41,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -d, --debug\t\tenable communication debugging\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/ideviceimagemounter.c b/tools/ideviceimagemounter.c
+index a0f4b83..ad3222a 100644
+--- a/tools/ideviceimagemounter.c
++++ b/tools/ideviceimagemounter.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdlib.h>
+ #define _GNU_SOURCE 1
+ #define __USE_GNU 1
+@@ -66,7 +70,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -d, --debug\t\tenable communication debugging\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ static void parse_opts(int argc, char **argv)
+diff --git a/tools/ideviceinfo.c b/tools/ideviceinfo.c
+index 641a036..40bcac6 100644
+--- a/tools/ideviceinfo.c
++++ b/tools/ideviceinfo.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -98,7 +102,7 @@ static void print_usage(int argc, char **argv)
+ 		printf("  %s\n", domains[i++]);
+ 	}
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char *argv[])
+diff --git a/tools/idevicename.c b/tools/idevicename.c
+index b5b9e62..013becc 100644
+--- a/tools/idevicename.c
++++ b/tools/idevicename.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <unistd.h>
+@@ -37,7 +41,7 @@ static void print_usage(void)
+ 	printf("  -u, --udid UDID\tuse UDID to target a specific device\n");
+ 	printf("  -h, --help\t\tprint usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ int main(int argc, char** argv)
+diff --git a/tools/idevicenotificationproxy.c b/tools/idevicenotificationproxy.c
+index ff18eca..5e4ac9a 100644
+--- a/tools/idevicenotificationproxy.c
++++ b/tools/idevicenotificationproxy.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -69,7 +73,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ static void notify_cb(const char *notification, void *user_data)
+diff --git a/tools/idevicepair.c b/tools/idevicepair.c
+index 237b168..f34369e 100644
+--- a/tools/idevicepair.c
++++ b/tools/idevicepair.c
+@@ -20,6 +20,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -71,7 +75,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID  target specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help       prints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ static void parse_opts(int argc, char **argv)
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 9517af8..4915c05 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -19,6 +19,11 @@
+  * License along with this library; if not, write to the Free Software
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
++
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -57,7 +62,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("  -x, --xml        print XML output when using the 'dump' command\n");
+ 	printf("  -h, --help       prints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+ enum {
+diff --git a/tools/idevicescreenshot.c b/tools/idevicescreenshot.c
+index bff502c..da229e2 100644
+--- a/tools/idevicescreenshot.c
++++ b/tools/idevicescreenshot.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -147,5 +151,5 @@ void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+diff --git a/tools/idevicesyslog.c b/tools/idevicesyslog.c
+index 4bc4b45..47d2f8c 100644
+--- a/tools/idevicesyslog.c
++++ b/tools/idevicesyslog.c
+@@ -19,6 +19,10 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+  */
+ 
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
+ #include <stdio.h>
+ #include <string.h>
+ #include <errno.h>
+@@ -206,6 +210,6 @@ void print_usage(int argc, char **argv)
+ 	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+ 	printf("  -h, --help\t\tprints usage information\n");
+ 	printf("\n");
+-	printf("Homepage: <http://libimobiledevice.org>\n");
++	printf("Homepage: <" PACKAGE_URL ">\n");
+ }
+ 
+-- 
+2.14.1
+
+
+From 40f7dd06496d5b1c8963f760a10a217df926cd85 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 9 Oct 2015 15:43:22 +0200
+Subject: [PATCH 07/65] common: Add missing gnutls/openssl CFLAGS to
+ Makefile.am
+
+---
+ common/Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/Makefile.am b/common/Makefile.am
+index a79094b..054e2a1 100644
+--- a/common/Makefile.am
++++ b/common/Makefile.am
+@@ -1,6 +1,6 @@
+ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)
+ 
+-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libusbmuxd_CFLAGS) $(libplist_CFLAGS) $(LFS_CFLAGS)
++AM_CFLAGS = $(GLOBAL_CFLAGS) $(libusbmuxd_CFLAGS) $(libplist_CFLAGS) $(libgnutls_CFLAGS) $(libtasn1_CFLAGS) $(openssl_CFLAGS) $(LFS_CFLAGS)
+ AM_LDFLAGS = $(libusbmuxd_LIBS) $(libplist_LIBS) ${libpthread_LIBS}
+ 
+ noinst_LTLIBRARIES = libinternalcommon.la
+-- 
+2.14.1
+
+
+From 6070126868069f2ee01ea9414f4cfbe5de285267 Mon Sep 17 00:00:00 2001
+From: "Jay Freeman (saurik)" <saurik@saurik.com>
+Date: Wed, 21 Oct 2015 00:39:14 -0700
+Subject: [PATCH 08/65] Fix installation_proxy when using GnuTLS instead of
+ OpenSSL
+
+---
+ src/idevice.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 7c33cdd..b776e84 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -393,10 +393,13 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_receive_timeout(idevice_
+ 	}
+ 
+ 	if (connection->ssl_data) {
+-#ifdef HAVE_OPENSSL
+ 		uint32_t received = 0;
+ 		while (received < len) {
++#ifdef HAVE_OPENSSL
+ 			int r = SSL_read(connection->ssl_data->session, (void*)((char*)(data+received)), (int)len-received);
++#else
++			ssize_t r = gnutls_record_recv(connection->ssl_data->session, (void*)(data+received), (size_t)len-received);
++#endif
+ 			if (r > 0) {
+ 				received += r;
+ 			} else {
+@@ -404,9 +407,6 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_receive_timeout(idevice_
+ 			}
+ 		}
+ 		debug_info("SSL_read %d, received %d", len, received);
+-#else
+-		ssize_t received = gnutls_record_recv(connection->ssl_data->session, (void*)data, (size_t)len);
+-#endif
+ 		if (received > 0) {
+ 			*recv_bytes = received;
+ 			return IDEVICE_E_SUCCESS;
+-- 
+2.14.1
+
+
+From 2203f4cba9ddaacee1ad702b7948da0e59d33497 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 18 Dec 2015 20:46:46 +0100
+Subject: [PATCH 09/65] tools: Fix inverted abort condition in
+ idevicecrashreport
+
+This bug caused it to never wait for the 'ping' message from
+the crashreportmover service
+---
+ tools/idevicecrashreport.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/idevicecrashreport.c b/tools/idevicecrashreport.c
+index 7ac9baf..8c04fd1 100644
+--- a/tools/idevicecrashreport.c
++++ b/tools/idevicecrashreport.c
+@@ -405,7 +405,7 @@ int main(int argc, char* argv[]) {
+ 	/* read "ping" message which indicates the crash logs have been moved to a safe harbor */
+ 	char *ping = malloc(4);
+ 	int attempts = 0;
+-	while ((strncmp(ping, "ping", 4) != 0) && (attempts > 10)) {
++	while ((strncmp(ping, "ping", 4) != 0) && (attempts < 10)) {
+ 		uint32_t bytes = 0;
+ 		device_error = idevice_connection_receive_timeout(connection, ping, 4, &bytes, 2000);
+ 		if ((bytes == 0) && (device_error == IDEVICE_E_SUCCESS)) {
+-- 
+2.14.1
+
+
+From cae19fa6cf28074b51ce421d64142f7ec1e1dde2 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 18 Dec 2015 21:01:01 +0100
+Subject: [PATCH 10/65] tools: idevicecrashreport: Propertly initialize buffer
+ used to check for ping message
+
+---
+ tools/idevicecrashreport.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/idevicecrashreport.c b/tools/idevicecrashreport.c
+index 8c04fd1..8502938 100644
+--- a/tools/idevicecrashreport.c
++++ b/tools/idevicecrashreport.c
+@@ -404,6 +404,7 @@ int main(int argc, char* argv[]) {
+ 
+ 	/* read "ping" message which indicates the crash logs have been moved to a safe harbor */
+ 	char *ping = malloc(4);
++	memset(ping, '\0', 4);
+ 	int attempts = 0;
+ 	while ((strncmp(ping, "ping", 4) != 0) && (attempts < 10)) {
+ 		uint32_t bytes = 0;
+-- 
+2.14.1
+
+
+From decffad5f5a0320b1b6e9e8cda821534ba2ed0ca Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Tue, 22 Dec 2015 18:10:35 +0100
+Subject: [PATCH 11/65] tools: idevicecrashreport: Fix missing 0-term when
+ creating local filename
+
+When a .synced file is encountered, the .synced should be stripped off the
+local filename. However the strncpy doesn't 0-terminate the string by itself
+so the output filename usually contains some garbage characters at the end.
+This commit properly 0-terminates the local filename to avoid this.
+---
+ tools/idevicecrashreport.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/tools/idevicecrashreport.c b/tools/idevicecrashreport.c
+index 8502938..4d7f41c 100644
+--- a/tools/idevicecrashreport.c
++++ b/tools/idevicecrashreport.c
+@@ -144,7 +144,9 @@ static int afc_client_copy_and_remove_crash_reports(afc_client_t afc, const char
+ 		char* p = strrchr(list[k], '.');
+ 		if (p != NULL && !strncmp(p, ".synced", 7)) {
+ 			/* make sure to strip ".synced" extension as seen on iOS 5 */
+-			strncpy(((char*)target_filename) + host_directory_length, list[k], strlen(list[k]) - 7);
++			int newlen = strlen(list[k]) - 7;
++			strncpy(((char*)target_filename) + host_directory_length, list[k], newlen);
++			target_filename[host_directory_length + newlen] = '\0';
+ 		} else {
+ 			strcpy(((char*)target_filename) + host_directory_length, list[k]);
+ 		}
+-- 
+2.14.1
+
+
+From df1f5c4d70d0c19ad40072f5246ca457e7f9849e Mon Sep 17 00:00:00 2001
+From: Joshua Hill <posixninja@gmail.com>
+Date: Tue, 29 Dec 2015 22:27:17 +0100
+Subject: [PATCH 12/65] common: [security fix] Make sure sockets only listen
+ locally
+
+---
+ common/socket.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/common/socket.c b/common/socket.c
+index b276864..e2968a6 100644
+--- a/common/socket.c
++++ b/common/socket.c
+@@ -172,7 +172,7 @@ int socket_create(uint16_t port)
+ 
+ 	memset((void *) &saddr, 0, sizeof(saddr));
+ 	saddr.sin_family = AF_INET;
+-	saddr.sin_addr.s_addr = htonl(INADDR_ANY);
++	saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+ 	saddr.sin_port = htons(port);
+ 
+ 	if (0 > bind(sfd, (struct sockaddr *) &saddr, sizeof(saddr))) {
+@@ -329,7 +329,7 @@ int socket_accept(int fd, uint16_t port)
+ 
+ 	memset(&addr, 0, sizeof(addr));
+ 	addr.sin_family = AF_INET;
+-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
++	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+ 	addr.sin_port = htons(port);
+ 
+ 	addr_len = sizeof(addr);
+-- 
+2.14.1
+
+
+From 35b0543ec2a54250be011a9ffdd1d70f2c1ced5c Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Wed, 23 Sep 2015 02:11:54 +0200
+Subject: [PATCH 13/65] idevicebackup: fix some timestamps that are relative to
+ the Mac epoch instead of Unix one
+
+---
+ common/utils.h         | 2 ++
+ tools/idevicebackup.c  | 4 ++--
+ tools/idevicebackup2.c | 7 ++++---
+ 3 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/common/utils.h b/common/utils.h
+index 90cfa4a..8426bc0 100644
+--- a/common/utils.h
++++ b/common/utils.h
+@@ -33,6 +33,8 @@
+ #include <stdio.h>
+ #include <plist/plist.h>
+ 
++#define MAC_EPOCH 978307200
++
+ #ifndef HAVE_STPCPY
+ char *stpcpy(char *s1, const char *s2);
+ #endif
+diff --git a/tools/idevicebackup.c b/tools/idevicebackup.c
+index 2619cc9..7e825de 100644
+--- a/tools/idevicebackup.c
++++ b/tools/idevicebackup.c
+@@ -251,7 +251,7 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid)
+ 	if (value_node)
+ 		plist_dict_set_item(ret, "IMEI", plist_copy(value_node));
+ 
+-	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL), 0));
++	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL) - MAC_EPOCH, 0));
+ 
+ 	value_node = plist_dict_get_item(root_node, "ProductType");
+ 	plist_dict_set_item(ret, "Product Type", plist_copy(value_node));
+@@ -288,7 +288,7 @@ static void mobilebackup_info_update_last_backup_date(plist_t info_plist)
+ 		return;
+ 
+ 	node = plist_dict_get_item(info_plist, "Last Backup Date");
+-	plist_set_date_val(node, time(NULL), 0);
++	plist_set_date_val(node, time(NULL) - MAC_EPOCH, 0);
+ 
+ 	node = NULL;
+ }
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index 934cf39..be5a1a0 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -146,10 +146,10 @@ static void mobilebackup_afc_get_file_contents(afc_client_t afc, const char *fil
+ 		uint32_t bread = 0;
+ 		afc_file_read(afc, f, buf+done, 65536, &bread);
+ 		if (bread > 0) {
++			done += bread;
+ 		} else {
+ 			break;
+ 		}
+-		done += bread;
+ 	}
+ 	if (done == fsize) {
+ 		*size = fsize;
+@@ -223,7 +223,7 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 	if (value_node)
+ 		plist_dict_set_item(ret, "IMEI", plist_copy(value_node));
+ 
+-	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL), 0));
++	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL) - MAC_EPOCH, 0));
+ 
+ 	value_node = plist_dict_get_item(root_node, "PhoneNumber");
+ 	if (value_node && (plist_get_node_type(value_node) == PLIST_STRING)) {
+@@ -914,7 +914,8 @@ static void mb2_handle_list_directory(mobilebackup2_client_t mobilebackup2, plis
+ 				}
+ 				plist_dict_set_item(fdict, "DLFileType", plist_new_string(ftype));
+ 				plist_dict_set_item(fdict, "DLFileSize", plist_new_uint(st.st_size));
+-				plist_dict_set_item(fdict, "DLFileModificationDate", plist_new_date(st.st_mtime, 0));
++				plist_dict_set_item(fdict, "DLFileModificationDate",
++						    plist_new_date(st.st_mtime - MAC_EPOCH, 0));
+ 
+ 				plist_dict_set_item(dirlist, ep->d_name, fdict);
+ 				free(fpath);
+-- 
+2.14.1
+
+
+From 15173c59a00a8e9c154bd6787e35c243c383160e Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Wed, 23 Sep 2015 02:15:34 +0200
+Subject: [PATCH 14/65] Avoid potential NULL pointer dereference (leading to
+ segfault) if functions are called with NULL arguments
+
+---
+ src/installation_proxy.c | 14 +++++++++-----
+ src/lockdown.c           |  2 +-
+ 2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/installation_proxy.c b/src/installation_proxy.c
+index 8bde154..9f367aa 100644
+--- a/src/installation_proxy.c
++++ b/src/installation_proxy.c
+@@ -847,11 +847,12 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_status_get_error(plist_t status
+ 
+ LIBIMOBILEDEVICE_API void instproxy_status_get_name(plist_t status, char **name)
+ {
+-	*name = NULL;
+ 	if (name) {
+ 		plist_t node = plist_dict_get_item(status, "Status");
+ 		if (node) {
+ 			plist_get_string_val(node, name);
++		} else {
++			*name = NULL;
+ 		}
+ 	}
+ }
+@@ -907,10 +908,13 @@ LIBIMOBILEDEVICE_API void instproxy_status_get_current_list(plist_t status, uint
+ 
+ LIBIMOBILEDEVICE_API void instproxy_command_get_name(plist_t command, char** name)
+ {
+-	*name = NULL;
+-	plist_t node = plist_dict_get_item(command, "Command");
+-	if (node) {
+-		plist_get_string_val(node, name);
++	if (name) {
++		plist_t node = plist_dict_get_item(command, "Command");
++		if (node) {
++			plist_get_string_val(node, name);
++		} else {
++			*name = NULL;
++		}
+ 	}
+ }
+ 
+diff --git a/src/lockdown.c b/src/lockdown.c
+index 85124bd..d2e8c74 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -637,7 +637,7 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_get_device_name(lockdownd_clien
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_client_new(idevice_t device, lockdownd_client_t *client, const char *label)
+ {
+-	if (!client)
++	if (!device || !client)
+ 		return LOCKDOWN_E_INVALID_ARG;
+ 
+ 	static struct lockdownd_service_descriptor service = {
+-- 
+2.14.1
+
+
+From 692f7c9de72ca7fcaba51659972270d445751438 Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Wed, 23 Sep 2015 02:19:27 +0200
+Subject: [PATCH 15/65] Add new function to get the underlying file descriptor
+ of an idevice connection
+
+---
+ include/libimobiledevice/libimobiledevice.h | 10 ++++++++++
+ src/idevice.c                               | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/include/libimobiledevice/libimobiledevice.h b/include/libimobiledevice/libimobiledevice.h
+index 016cadb..b125adf 100644
+--- a/include/libimobiledevice/libimobiledevice.h
++++ b/include/libimobiledevice/libimobiledevice.h
+@@ -239,6 +239,16 @@ idevice_error_t idevice_connection_enable_ssl(idevice_connection_t connection);
+  */
+ idevice_error_t idevice_connection_disable_ssl(idevice_connection_t connection);
+ 
++/**
++ * Get the underlying file descriptor for a connection
++ *
++ * @param connection The connection to get fd of
++ * @param fd Pointer to an int where the fd is stored
++ *
++ * @return IDEVICE_E_SUCCESS if ok, otherwise an error code.
++ */
++idevice_error_t idevice_connection_get_fd(idevice_connection_t connection, int *fd);
++
+ /* misc */
+ 
+ /**
+diff --git a/src/idevice.c b/src/idevice.c
+index b776e84..5912aeb 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -463,6 +463,22 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_receive(idevice_connecti
+ 	return internal_connection_receive(connection, data, len, recv_bytes);
+ }
+ 
++LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_get_fd(idevice_connection_t connection, int *fd)
++{
++	if (!connection || !fd) {
++		return IDEVICE_E_INVALID_ARG;
++	}
++
++	idevice_error_t result = IDEVICE_E_UNKNOWN_ERROR;
++	if (connection->type == CONNECTION_USBMUXD) {
++		*fd = (int)(long)connection->data;
++		result = IDEVICE_E_SUCCESS;
++	} else {
++		debug_info("Unknown connection type %d", connection->type);
++	}
++	return result;
++}
++
+ LIBIMOBILEDEVICE_API idevice_error_t idevice_get_handle(idevice_t device, uint32_t *handle)
+ {
+ 	if (!device)
+-- 
+2.14.1
+
+
+From cca7ce77d8bde998933ef8a753407b043806c1a6 Mon Sep 17 00:00:00 2001
+From: Matthias Ringwald <matthias@ringwald.ch>
+Date: Fri, 29 Apr 2016 20:27:32 +0200
+Subject: [PATCH 16/65] idevicedebug: Show error if container info not found
+
+---
+ tools/idevicedebug.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/tools/idevicedebug.c b/tools/idevicedebug.c
+index b00893d..f18254a 100644
+--- a/tools/idevicedebug.c
++++ b/tools/idevicedebug.c
+@@ -317,16 +317,14 @@ int main(int argc, char *argv[])
+ 			instproxy_client_free(instproxy_client);
+ 			instproxy_client = NULL;
+ 
+-			if (container) {
+-				if (plist_get_node_type(container) == PLIST_STRING) {
+-					plist_get_string_val(container, &working_directory);
+-					debug_info("working_directory: %s\n", working_directory);
+-					plist_free(container);
+-				} else {
+-						plist_free(container);
+-					fprintf(stderr, "Could not determine container path for bundle identifier %s.\n", bundle_identifier);
+-					goto cleanup;
+-				}
++			if (container && (plist_get_node_type(container) == PLIST_STRING)) {
++				plist_get_string_val(container, &working_directory);
++				debug_info("working_directory: %s\n", working_directory);
++				plist_free(container);
++			} else {
++				plist_free(container);
++				fprintf(stderr, "Could not determine container path for bundle identifier %s.\n", bundle_identifier);
++				goto cleanup;
+ 			}
+ 
+ 			/* start and connect to debugserver */
+-- 
+2.14.1
+
+
+From d29709f86ef66239551493b4b4a4fc7eb62771ce Mon Sep 17 00:00:00 2001
+From: Xiao Deng <dhl16m@gmail.com>
+Date: Fri, 29 Apr 2016 20:34:13 +0200
+Subject: [PATCH 17/65] diagnostics_relay: Plug small memory leak
+
+---
+ src/diagnostics_relay.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/diagnostics_relay.c b/src/diagnostics_relay.c
+index f67c4df..79e041e 100644
+--- a/src/diagnostics_relay.c
++++ b/src/diagnostics_relay.c
+@@ -104,6 +104,7 @@ LIBIMOBILEDEVICE_API diagnostics_relay_error_t diagnostics_relay_client_free(dia
+ 	if (property_list_service_client_free(client->parent) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
+ 		return DIAGNOSTICS_RELAY_E_UNKNOWN_ERROR;
+ 	}
++	free(client);
+ 	return DIAGNOSTICS_RELAY_E_SUCCESS;
+ }
+ 
+-- 
+2.14.1
+
+
+From 11c1cd64edb750b3035c6b147e6b9712a6caefe2 Mon Sep 17 00:00:00 2001
+From: Xiao Deng <dhl16m@gmail.com>
+Date: Fri, 29 Apr 2016 20:34:52 +0200
+Subject: [PATCH 18/65] file_relay: Plug small memory leak
+
+---
+ src/file_relay.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/file_relay.c b/src/file_relay.c
+index 5055556..455855b 100644
+--- a/src/file_relay.c
++++ b/src/file_relay.c
+@@ -59,6 +59,7 @@ LIBIMOBILEDEVICE_API file_relay_error_t file_relay_client_free(file_relay_client
+ 	if (property_list_service_client_free(client->parent) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
+ 		return FILE_RELAY_E_UNKNOWN_ERROR;
+ 	}
++	free(client);
+ 	return FILE_RELAY_E_SUCCESS;
+ }
+ 
+-- 
+2.14.1
+
+
+From ed48703dd92a223ae4a59393aade75b70367d833 Mon Sep 17 00:00:00 2001
+From: Kylie McClain <somasis@exherbo.org>
+Date: Tue, 23 Jun 2015 04:28:41 -0400
+Subject: [PATCH 19/65] configure.ac: Don't always explicitly disable openssl
+
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 43da458..bade848 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -120,7 +120,7 @@ AC_SUBST([CYTHON_SUB])
+ AC_ARG_ENABLE([openssl],
+             [AS_HELP_STRING([--disable-openssl],
+             [Do not look for OpenSSL])],
+-            [use_openssl=no],
++            [use_openssl=$enableval],
+             [use_openssl=yes])
+ 
+ pkg_req_openssl="openssl >= 0.9.8"
+-- 
+2.14.1
+
+
+From e6486dbd29470939ed032972ca693888465e9ff4 Mon Sep 17 00:00:00 2001
+From: Arty Gus <hero@engineeriam.net>
+Date: Fri, 29 Apr 2016 21:47:32 +0200
+Subject: [PATCH 21/65] configure.ac: Only check for pthread support on
+ non-win32 platforms
+
+---
+ configure.ac | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index bade848..26fe819 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -37,7 +37,6 @@ AC_PROG_LIBTOOL
+ PKG_CHECK_MODULES(libusbmuxd, libusbmuxd >= $LIBUSBMUXD_VERSION)
+ PKG_CHECK_MODULES(libplist, libplist >= $LIBPLIST_VERSION)
+ PKG_CHECK_MODULES(libplistmm, libplist++ >= $LIBPLISTMM_VERSION)
+-AC_CHECK_LIB(pthread, [pthread_create, pthread_mutex_lock], [AC_SUBST(libpthread_LIBS,[-lpthread])], [AC_MSG_ERROR([libpthread is required to build libimobiledevice])])
+ 
+ # Checks for header files.
+ AC_HEADER_STDC
+@@ -82,6 +81,10 @@ case ${host_os} in
+ esac
+ AM_CONDITIONAL(WIN32, test x$win32 = xtrue)
+ 
++if test "x$win32" != xtrue; then
++  AC_CHECK_LIB(pthread, [pthread_create, pthread_mutex_lock], [AC_SUBST(libpthread_LIBS,[-lpthread])], [AC_MSG_ERROR([libpthread is required to build libimobiledevice])])
++fi
++
+ # Cython Python Bindings
+ AC_ARG_WITH([cython],
+             [AS_HELP_STRING([--without-cython],
+-- 
+2.14.1
+
+
+From 2a5868411c57e25802d2f16fd6b77601f10d0b72 Mon Sep 17 00:00:00 2001
+From: Nikos Mavrogiannopoulos <nmav@redhat.com>
+Date: Fri, 29 Apr 2016 22:58:34 +0200
+Subject: [PATCH 22/65] Updated gnutls certificate callback to new API
+ (backwards compatible)
+
+---
+ src/idevice.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 5912aeb..f2de6a3 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -642,7 +642,11 @@ static const char *ssl_error_to_string(int e)
+ /**
+  * Internally used gnutls callback function that gets called during handshake.
+  */
++#if GNUTLS_VERSION_NUMBER >= 0x020b07
++static int internal_cert_callback(gnutls_session_t session, const gnutls_datum_t * req_ca_rdn, int nreqs, const gnutls_pk_algorithm_t * sign_algos, int sign_algos_length, gnutls_retr2_st * st)
++#else
+ static int internal_cert_callback(gnutls_session_t session, const gnutls_datum_t * req_ca_rdn, int nreqs, const gnutls_pk_algorithm_t * sign_algos, int sign_algos_length, gnutls_retr_st * st)
++#endif
+ {
+ 	int res = -1;
+ 	gnutls_certificate_type_t type = gnutls_certificate_type_get(session);
+@@ -650,7 +654,12 @@ static int internal_cert_callback(gnutls_session_t session, const gnutls_datum_t
+ 		ssl_data_t ssl_data = (ssl_data_t)gnutls_session_get_ptr(session);
+ 		if (ssl_data && ssl_data->host_privkey && ssl_data->host_cert) {
+ 			debug_info("Passing certificate");
++#if GNUTLS_VERSION_NUMBER >= 0x020b07
++			st->cert_type = type;
++			st->key_type = GNUTLS_PRIVKEY_X509;
++#else
+ 			st->type = type;
++#endif
+ 			st->ncerts = 1;
+ 			st->cert.x509 = &ssl_data->host_cert;
+ 			st->key.x509 = ssl_data->host_privkey;
+@@ -759,7 +768,11 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	debug_info("enabling SSL mode");
+ 	errno = 0;
+ 	gnutls_certificate_allocate_credentials(&ssl_data_loc->certificate);
++#if GNUTLS_VERSION_NUMBER >= 0x020b07
++	gnutls_certificate_set_retrieve_function(ssl_data_loc->certificate, internal_cert_callback);
++#else
+ 	gnutls_certificate_client_set_retrieve_function(ssl_data_loc->certificate, internal_cert_callback);
++#endif
+ 	gnutls_init(&ssl_data_loc->session, GNUTLS_CLIENT);
+ 	gnutls_priority_set_direct(ssl_data_loc->session, "NONE:+VERS-SSL3.0:+ANON-DH:+RSA:+AES-128-CBC:+AES-256-CBC:+SHA1:+MD5:+COMP-NULL", NULL);
+ 	gnutls_credentials_set(ssl_data_loc->session, GNUTLS_CRD_CERTIFICATE, ssl_data_loc->certificate);
+-- 
+2.14.1
+
+
+From 6ce120c168b0f0a0146e505649864b5b07dc5093 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 15 Jun 2016 02:01:36 +0200
+Subject: [PATCH 23/65] Fix SSL version negotiation with newer versions of
+ OpenSSL
+
+---
+ src/idevice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index f2de6a3..4e8c56e 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -703,7 +703,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	}
+ 	BIO_set_fd(ssl_bio, (int)(long)connection->data, BIO_NOCLOSE);
+ 
+-	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv3_method());
++	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
+ 	if (ssl_ctx == NULL) {
+ 		debug_info("ERROR: Could not create SSL context.");
+ 		BIO_free(ssl_bio);
+-- 
+2.14.1
+
+
+From dc4c75d8a0a2ef557ac9ba0d2e080805621a3d98 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 16 Jun 2016 19:24:48 +0200
+Subject: [PATCH 24/65] Revert "Fix SSL version negotiation with newer versions
+ of OpenSSL"
+
+This reverts commit 6ce120c168b0f0a0146e505649864b5b07dc5093.
+The change had the negative effect that connecting to older iOS devices wouldn't work anymore.
+---
+ src/idevice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 4e8c56e..f2de6a3 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -703,7 +703,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	}
+ 	BIO_set_fd(ssl_bio, (int)(long)connection->data, BIO_NOCLOSE);
+ 
+-	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv23_method());
++	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv3_method());
+ 	if (ssl_ctx == NULL) {
+ 		debug_info("ERROR: Could not create SSL context.");
+ 		BIO_free(ssl_bio);
+-- 
+2.14.1
+
+
+From 13bf235cac2201747de11652cf14fe2714ca0718 Mon Sep 17 00:00:00 2001
+From: David Weinstein <dweinst@insitusec.com>
+Date: Mon, 21 Mar 2016 17:45:59 -0400
+Subject: [PATCH 25/65] Fix SSL version negotiation for newer versions of
+ OpenSSL
+
+Depending on the OpenSSL version (and custom distribution patches), `SSLv3_method()`
+would return NULL on some systems and also `SSLv23_method()` fails with some older
+iOS versions...
+---
+ src/idevice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index f2de6a3..1dcdae2 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -703,7 +703,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	}
+ 	BIO_set_fd(ssl_bio, (int)(long)connection->data, BIO_NOCLOSE);
+ 
+-	SSL_CTX *ssl_ctx = SSL_CTX_new(SSLv3_method());
++	SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_method());
+ 	if (ssl_ctx == NULL) {
+ 		debug_info("ERROR: Could not create SSL context.");
+ 		BIO_free(ssl_bio);
+-- 
+2.14.1
+
+
+From a94c5c827a786844b56e8e36ddaed6239f32d86c Mon Sep 17 00:00:00 2001
+From: "Jay Freeman (saurik)" <saurik@saurik.com>
+Date: Wed, 27 Jul 2016 02:46:27 -0700
+Subject: [PATCH 26/65] lockdown: remove unnecessary check for pair record file
+ during pairing
+
+During device pairing the code in lockdownd_do_pair() is checking if there
+is a pair record on disk for the current device, and then requests it from
+usbmuxd. This additional check is not only unnecessary since usbmuxd can
+obviously only return a pair record if it exists, but is also causing issues
+on newer versions of macOS where /var/db/lockdown is mode 700.
+---
+ src/lockdown.c | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/lockdown.c b/src/lockdown.c
+index d2e8c74..904267e 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -893,13 +893,9 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 			lockdownd_get_value(client, NULL, "WiFiAddress", &wifi_node);
+ 		} else {
+ 			/* use existing pair record */
+-			if (userpref_has_pair_record(client->udid)) {
+-				userpref_read_pair_record(client->udid, &pair_record_plist);
+-				if (!pair_record_plist) {
+-					return LOCKDOWN_E_INVALID_CONF;
+-				}
+-			} else {
+-				return LOCKDOWN_E_INVALID_HOST_ID;
++			userpref_read_pair_record(client->udid, &pair_record_plist);
++			if (!pair_record_plist) {
++				return LOCKDOWN_E_INVALID_CONF;
+ 			}
+ 		}
+ 	}
+-- 
+2.14.1
+
+
+From 18811d92c940018aeb3916780960d8f085eb9f32 Mon Sep 17 00:00:00 2001
+From: "Jay Freeman (saurik)" <saurik@saurik.com>
+Date: Wed, 27 Jul 2016 02:46:47 -0700
+Subject: [PATCH 27/65] userpref: Remove obsoleted function
+ userpref_has_pair_record()
+
+Since pair records are meanwhile handled by usbmuxd there is no need to check
+for the existence of a pair record on disk. Asking usbmuxd for a pair record of
+a given UDID is sufficient to know if it exists or not.
+---
+ common/userpref.c | 29 -----------------------------
+ 1 file changed, 29 deletions(-)
+
+diff --git a/common/userpref.c b/common/userpref.c
+index f88a123..d22c7f5 100644
+--- a/common/userpref.c
++++ b/common/userpref.c
+@@ -191,35 +191,6 @@ int userpref_read_system_buid(char **system_buid)
+ 	return res;
+ }
+ 
+-/**
+- * Determines whether this device has been connected to this system before.
+- *
+- * @param udid The device UDID as given by the device.
+- *
+- * @return 1 if the device has been connected previously to this configuration
+- *         or 0 otherwise.
+- */
+-int userpref_has_pair_record(const char *udid)
+-{
+-	int ret = 0;
+-	const char *config_path = NULL;
+-	char *config_file = NULL;
+-	struct stat st;
+-
+-	if (!udid) return 0;
+-
+-	/* first get config file */
+-	config_path = userpref_get_config_dir();
+-	config_file = string_concat(config_path, DIR_SEP_S, udid, USERPREF_CONFIG_EXTENSION, NULL);
+-
+-	if ((stat(config_file, &st) == 0) && S_ISREG(st.st_mode))
+-		ret = 1;
+-
+-	free(config_file);
+-
+-	return ret;
+-}
+-
+ /**
+  * Fills a list with UDIDs of devices that have been connected to this
+  * system before, i.e. for which a public key file exists.
+-- 
+2.14.1
+
+
+From 72643b2b83990b9cf97cc84b285b30763d44a72d Mon Sep 17 00:00:00 2001
+From: "Jay Freeman (saurik)" <saurik@saurik.com>
+Date: Tue, 2 Aug 2016 03:08:04 -0700
+Subject: [PATCH 28/65] idevice: Update GnuTLS code to support iOS 10
+
+As of iOS 10 beta 4, the GnuTLS implementation idevice_connection_enable_ssl
+needs to be updated to support TLS. Using +VERS-TLS-ALL did not work on some
+of the devices I tested and I wasn't sure how to fix it, but +VERS-TLS1.0 is
+working on every device I've tested: iOS 9.0.2, 10.0b4, 8.1.1, 6.0, and 3.0.
+---
+ src/idevice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 1dcdae2..b6dfe4e 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -774,7 +774,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	gnutls_certificate_client_set_retrieve_function(ssl_data_loc->certificate, internal_cert_callback);
+ #endif
+ 	gnutls_init(&ssl_data_loc->session, GNUTLS_CLIENT);
+-	gnutls_priority_set_direct(ssl_data_loc->session, "NONE:+VERS-SSL3.0:+ANON-DH:+RSA:+AES-128-CBC:+AES-256-CBC:+SHA1:+MD5:+COMP-NULL", NULL);
++	gnutls_priority_set_direct(ssl_data_loc->session, "NONE:+VERS-TLS1.0:+ANON-DH:+RSA:+AES-128-CBC:+AES-256-CBC:+SHA1:+MD5:+COMP-NULL", NULL);
+ 	gnutls_credentials_set(ssl_data_loc->session, GNUTLS_CRD_CERTIFICATE, ssl_data_loc->certificate);
+ 	gnutls_session_set_ptr(ssl_data_loc->session, ssl_data_loc);
+ 
+-- 
+2.14.1
+
+
+From 00f8e5733f716da8032606566eac7a9e2e49514d Mon Sep 17 00:00:00 2001
+From: "Jay Freeman (saurik)" <saurik@saurik.com>
+Date: Tue, 9 Aug 2016 17:18:14 -0700
+Subject: [PATCH 29/65] lockdown: return LOCKDOWN_E_INVALID_HOST_ID when
+ missing pair record
+
+When the check of /var/db/lockdown was removed, lockdownd_do_pair started to
+always return LOCKDOWN_E_INVALID_CONF instead of usually (but not always...)
+returning LOCKDOWN_E_INVALID_HOST_ID for devices not currently paired. This
+change not only breaks some third-party code, but also breaks the other code
+in this library calling this function (lockdownd_client_new_with_handshake).
+---
+ src/lockdown.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lockdown.c b/src/lockdown.c
+index 904267e..cae950b 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -895,7 +895,7 @@ static lockdownd_error_t lockdownd_do_pair(lockdownd_client_t client, lockdownd_
+ 			/* use existing pair record */
+ 			userpref_read_pair_record(client->udid, &pair_record_plist);
+ 			if (!pair_record_plist) {
+-				return LOCKDOWN_E_INVALID_CONF;
++				return LOCKDOWN_E_INVALID_HOST_ID;
+ 			}
+ 		}
+ 	}
+-- 
+2.14.1
+
+
+From 6aecc7228dbb30b4db48374ffb4ae4a1616bdd95 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 18 Sep 2016 16:18:20 +0200
+Subject: [PATCH 30/65] idevicebackup2: Fix removal of Snapshot dir during
+ backup with iOS 10+
+
+DLMessageRemoveItems needs to recursively remove directories and this
+commit implements that.
+---
+ tools/idevicebackup2.c | 101 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 78 insertions(+), 23 deletions(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index be5a1a0..c822d7f 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -192,6 +192,74 @@ static int mkdir_with_parents(const char *dir, int mode)
+ 	return res;
+ }
+ 
++static int remove_file(const char* path)
++{
++	int e = 0;
++#ifdef WIN32
++	if (!DeleteFile(path)) {
++		e = win32err_to_errno(GetLastError());
++	}
++#else
++	if (remove(path) < 0) {
++		e = errno;
++	}
++#endif
++	return e;
++}
++
++static int remove_directory(const char* path)
++{
++	int e = 0;
++#ifdef WIN32
++	if (!RemoveDirectory(path)) {
++		e = win32err_to_errno(GetLastError());
++	}
++#else
++	if (remove(path) < 0) {
++		e = errno;
++	}
++#endif
++	return e;
++}
++
++static int rmdir_recursive(const char* path)
++{
++	DIR* cur_dir = opendir(path);
++	if (cur_dir) {
++		struct dirent* ep;
++		while ((ep = readdir(cur_dir))) {
++			if ((strcmp(ep->d_name, ".") == 0) || (strcmp(ep->d_name, "..") == 0)) {
++				continue;
++			}
++			char *fpath = string_build_path(path, ep->d_name, NULL);
++			if (fpath) {
++				struct stat st;
++				if (stat(fpath, &st) == 0) {
++					int res = 0;
++					if (S_ISDIR(st.st_mode)) {
++						res = rmdir_recursive(fpath);
++					} else {
++						res = remove_file(fpath);
++					}
++					if (res != 0) {
++						free(fpath);
++						closedir(cur_dir);
++						return res;
++					}
++				} else {
++					free(fpath);
++					closedir(cur_dir);
++					return errno;
++				}
++			}
++			free(fpath);
++		}
++		closedir(cur_dir);
++	}
++
++	return remove_directory(path);
++}
++
+ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_client_t lockdown, afc_client_t afc)
+ {
+ 	/* gather data from lockdown */
+@@ -1895,14 +1963,10 @@ checkpoint:
+ 									free(str);
+ 									char *oldpath = string_build_path(backup_directory, key, NULL);
+ 
+-#ifdef WIN32
+ 									if ((stat(newpath, &st) == 0) && S_ISDIR(st.st_mode))
+-										RemoveDirectory(newpath);
++										rmdir_recursive(newpath);
+ 									else
+-										DeleteFile(newpath);
+-#else
+-									remove(newpath);
+-#endif
++										remove_file(newpath);
+ 									if (rename(oldpath, newpath) < 0) {
+ 										printf("Renameing '%s' to '%s' failed: %s (%d)\n", oldpath, newpath, strerror(errno), errno);
+ 										errcode = errno_to_device_error(errno);
+@@ -1951,27 +2015,18 @@ checkpoint:
+ 								}
+ 								char *newpath = string_build_path(backup_directory, str, NULL);
+ 								free(str);
+-#ifdef WIN32
+ 								int res = 0;
+-								if ((stat(newpath, &st) == 0) && S_ISDIR(st.st_mode))
+-									res = RemoveDirectory(newpath);
+-								else
+-									res = DeleteFile(newpath);
+-								if (!res) {
+-									int e = win32err_to_errno(GetLastError());
+-									if (!suppress_warning)
+-										printf("Could not remove '%s': %s (%d)\n", newpath, strerror(e), e);
+-									errcode = errno_to_device_error(e);
+-									errdesc = strerror(e);
++								if ((stat(newpath, &st) == 0) && S_ISDIR(st.st_mode)) {
++									res = rmdir_recursive(newpath);
++								} else {
++									res = remove_file(newpath);
+ 								}
+-#else
+-								if (remove(newpath) < 0) {
++								if (res != 0) {
+ 									if (!suppress_warning)
+-										printf("Could not remove '%s': %s (%d)\n", newpath, strerror(errno), errno);
+-									errcode = errno_to_device_error(errno);
+-									errdesc = strerror(errno);
++										printf("Could not remove '%s': %s (%d)\n", newpath, strerror(res), res);
++									errcode = errno_to_device_error(res);
++									errdesc = strerror(res);
+ 								}
+-#endif
+ 								free(newpath);
+ 							}
+ 						}
+-- 
+2.14.1
+
+
+From 98a096134b23be980a0aa56e775c5510f0e93595 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 18 Sep 2016 16:24:14 +0200
+Subject: [PATCH 31/65] idevicebackup2: Fix build on win32 after last commit
+
+---
+ tools/idevicebackup2.c | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index c822d7f..3b2c0af 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -192,6 +192,20 @@ static int mkdir_with_parents(const char *dir, int mode)
+ 	return res;
+ }
+ 
++#ifdef WIN32
++static int win32err_to_errno(int err_value)
++{
++	switch (err_value) {
++		case ERROR_FILE_NOT_FOUND:
++			return ENOENT;
++		case ERROR_ALREADY_EXISTS:
++			return EEXIST;
++		default:
++			return EFAULT;
++	}
++}
++#endif
++
+ static int remove_file(const char* path)
+ {
+ 	int e = 0;
+@@ -518,20 +532,6 @@ static int errno_to_device_error(int errno_value)
+ 	}
+ }
+ 
+-#ifdef WIN32
+-static int win32err_to_errno(int err_value)
+-{
+-	switch (err_value) {
+-		case ERROR_FILE_NOT_FOUND:
+-			return ENOENT;
+-		case ERROR_ALREADY_EXISTS:
+-			return EEXIST;
+-		default:
+-			return EFAULT;
+-	}
+-}
+-#endif
+-
+ static int mb2_handle_send_file(mobilebackup2_client_t mobilebackup2, const char *backup_dir, const char *path, plist_t *errplist)
+ {
+ 	uint32_t nlen = 0;
+-- 
+2.14.1
+
+
+From 3fc7a85778d85a1dda1c0c4bedc8467470468476 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 18 Sep 2016 16:42:26 +0200
+Subject: [PATCH 32/65] win32: Fix MinGW build by adding -lgdi32 to properly
+ link against OpenSSL
+
+---
+ src/Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index da60386..5ced544 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -32,7 +32,7 @@ libimobiledevice_la_SOURCES = idevice.c idevice.h \
+ 
+ if WIN32
+ libimobiledevice_la_LDFLAGS += -avoid-version
+-libimobiledevice_la_LIBADD += -lole32 -lws2_32
++libimobiledevice_la_LIBADD += -lole32 -lws2_32 -lgdi32
+ endif
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+-- 
+2.14.1
+
+
+From 00424f40574641d1360c9b1115770f5cc5d19a72 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 23 Sep 2016 20:07:48 +0200
+Subject: [PATCH 33/65] idevicebackup2: Add installed application info to
+ Info.plist during backup
+
+For newer iOS versions, apparently >= iOS 8, iTunes stores information
+about installed applications inside of the Info.plist file. This
+commit mimics that behavior.
+---
+ tools/idevicebackup2.c | 115 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 110 insertions(+), 5 deletions(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index 3b2c0af..2c868d7 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -40,6 +40,8 @@
+ #include <libimobiledevice/mobilebackup2.h>
+ #include <libimobiledevice/notification_proxy.h>
+ #include <libimobiledevice/afc.h>
++#include <libimobiledevice/installation_proxy.h>
++#include <libimobiledevice/sbservices.h>
+ #include "common/utils.h"
+ 
+ #include <endianness.h>
+@@ -274,7 +276,24 @@ static int rmdir_recursive(const char* path)
+ 	return remove_directory(path);
+ }
+ 
+-static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_client_t lockdown, afc_client_t afc)
++static char* get_uuid()
++{
++	const char *chars = "ABCDEF0123456789";
++	int i = 0;
++	char *uuid = (char*)malloc(sizeof(char) * 32);
++
++	srand(time(NULL));
++
++	for (i = 0; i < 32; i++) {
++		uuid[i] = chars[rand() % 16];
++	}
++
++	uuid[32] = '\0';
++
++	return uuid;
++}
++
++static plist_t mobilebackup_factory_info_plist_new(const char* udid, idevice_t device, lockdownd_client_t lockdown, afc_client_t afc)
+ {
+ 	/* gather data from lockdown */
+ 	plist_t value_node = NULL;
+@@ -286,6 +305,74 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 	/* get basic device information in one go */
+ 	lockdownd_get_value(lockdown, NULL, NULL, &root_node);
+ 
++	/* get a list of installed user applications */
++	plist_t app_dict = plist_new_dict();
++	plist_t installed_apps = plist_new_array();
++	instproxy_client_t ip = NULL;
++	if (instproxy_client_start_service(device, &ip, "idevicebackup2") == INSTPROXY_E_SUCCESS) {
++		plist_t client_opts = instproxy_client_options_new();
++		instproxy_client_options_add(client_opts, "ApplicationType", "User", NULL);
++		instproxy_client_options_set_return_attributes(client_opts, "CFBundleIdentifier", "ApplicationSINF", "iTunesMetadata", NULL);
++
++		plist_t apps = NULL;
++		instproxy_browse(ip, client_opts, &apps);
++
++		sbservices_client_t sbs = NULL;
++		if (sbservices_client_start_service(device, &sbs, "idevicebackup2") != SBSERVICES_E_SUCCESS) {
++			printf("Couldn't establish sbservices connection. Continuing anyway.\n");
++		}
++
++		if (apps && (plist_get_node_type(apps) == PLIST_ARRAY)) {
++			uint32_t app_count = plist_array_get_size(apps);
++			uint32_t i;
++			time_t starttime = time(NULL);
++			for (i = 0; i < app_count; i++) {
++				plist_t app_entry = plist_array_get_item(apps, i);
++				plist_t bundle_id = plist_dict_get_item(app_entry, "CFBundleIdentifier");
++				if (bundle_id) {
++					char *bundle_id_str = NULL;
++					plist_array_append_item(installed_apps, plist_copy(bundle_id));
++
++					plist_get_string_val(bundle_id, &bundle_id_str);
++					plist_t sinf = plist_dict_get_item(app_entry, "ApplicationSINF");
++					plist_t meta = plist_dict_get_item(app_entry, "iTunesMetadata");
++					if (sinf && meta) {
++						plist_t adict = plist_new_dict();
++						plist_dict_set_item(adict, "ApplicationSINF", plist_copy(sinf));
++						if (sbs) {
++							char *pngdata = NULL;
++							uint64_t pngsize = 0;
++							sbservices_get_icon_pngdata(sbs, bundle_id_str, &pngdata, &pngsize);
++							if (pngdata) {
++								plist_dict_set_item(adict, "PlaceholderIcon", plist_new_data(pngdata, pngsize));
++								free(pngdata);
++							}
++						}
++						plist_dict_set_item(adict, "iTunesMetadata", plist_copy(meta));
++						plist_dict_set_item(app_dict, bundle_id_str, adict);
++					}
++				}
++				if ((time(NULL) - starttime) > 5) {
++					// make sure our lockdown connection doesn't time out in case this takes longer
++					lockdownd_query_type(lockdown, NULL);
++					starttime = time(NULL);
++				}
++			}
++		}
++		plist_free(apps);
++
++		if (sbs) {
++			sbservices_client_free(sbs);
++		}
++
++		instproxy_client_options_free(client_opts);
++
++		instproxy_client_free(ip);
++	}
++
++	/* Applications */
++	plist_dict_set_item(ret, "Applications", app_dict);
++
+ 	/* set fields we understand */
+ 	value_node = plist_dict_get_item(root_node, "BuildVersion");
+ 	plist_dict_set_item(ret, "Build Version", plist_copy(value_node));
+@@ -294,8 +381,9 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 	plist_dict_set_item(ret, "Device Name", plist_copy(value_node));
+ 	plist_dict_set_item(ret, "Display Name", plist_copy(value_node));
+ 
+-	/* FIXME: How is the GUID generated? */
+-	plist_dict_set_item(ret, "GUID", plist_new_string("---"));
++	char *uuid = get_uuid();
++	plist_dict_set_item(ret, "GUID", plist_new_string(uuid));
++	free(uuid);
+ 
+ 	value_node = plist_dict_get_item(root_node, "IntegratedCircuitCardIdentity");
+ 	if (value_node)
+@@ -305,13 +393,21 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 	if (value_node)
+ 		plist_dict_set_item(ret, "IMEI", plist_copy(value_node));
+ 
++	/* Installed Applications */
++	plist_dict_set_item(ret, "Installed Applications", installed_apps);
++
+ 	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL) - MAC_EPOCH, 0));
+ 
++	value_node = plist_dict_get_item(root_node, "MobileEquipmentIdentifier");
++	plist_dict_set_item(ret, "MEID", plist_copy(value_node));
++
+ 	value_node = plist_dict_get_item(root_node, "PhoneNumber");
+ 	if (value_node && (plist_get_node_type(value_node) == PLIST_STRING)) {
+ 		plist_dict_set_item(ret, "Phone Number", plist_copy(value_node));
+ 	}
+ 
++	/* FIXME Product Name */
++
+ 	value_node = plist_dict_get_item(root_node, "ProductType");
+ 	plist_dict_set_item(ret, "Product Type", plist_copy(value_node));
+ 
+@@ -349,6 +445,7 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 		"PhotosFolderAlbums",
+ 		"PhotosFolderName",
+ 		"PhotosFolderPrefs",
++		"VoiceMemos.plist",
+ 		"iPhotoAlbumPrefs",
+ 		"iTunesApplicationIDs",
+ 		"iTunesPrefs",
+@@ -375,7 +472,15 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, lockdownd_c
+ 	lockdownd_get_value(lockdown, "com.apple.iTunes", NULL, &itunes_settings);
+ 	plist_dict_set_item(ret, "iTunes Settings", itunes_settings ? itunes_settings : plist_new_dict());
+ 
+-	plist_dict_set_item(ret, "iTunes Version", plist_new_string("10.0.1"));
++	/* since we usually don't have iTunes, let's get the minimum required iTunes version from the device */
++	value_node = NULL;
++	lockdownd_get_value(lockdown, "com.apple.mobile.iTunes", "MinITunesVersion", &value_node);
++	if (value_node) {
++		plist_dict_set_item(ret, "iTunes Version", plist_copy(value_node));
++		plist_free(value_node);
++	} else {
++		plist_dict_set_item(ret, "iTunes Version", plist_new_string("10.0.1"));
++	}
+ 
+ 	plist_free(root_node);
+ 
+@@ -1688,7 +1793,7 @@ checkpoint:
+ 				plist_free(info_plist);
+ 				info_plist = NULL;
+ 			}
+-			info_plist = mobilebackup_factory_info_plist_new(udid, lockdown, afc);
++			info_plist = mobilebackup_factory_info_plist_new(udid, device, lockdown, afc);
+ 			remove(info_path);
+ 			plist_write_to_filename(info_plist, info_path, PLIST_FORMAT_XML);
+ 			free(info_path);
+-- 
+2.14.1
+
+
+From 1fa41702b6c7b8b169a33b79125d3b24f23c2da8 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Tue, 4 Oct 2016 14:37:57 +0200
+Subject: [PATCH 34/65] idevicebackup2: Fix assertion occuring when copying
+ non-present MEID
+
+---
+ tools/idevicebackup2.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index 2c868d7..eb78b06 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -399,7 +399,8 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, idevice_t d
+ 	plist_dict_set_item(ret, "Last Backup Date", plist_new_date(time(NULL) - MAC_EPOCH, 0));
+ 
+ 	value_node = plist_dict_get_item(root_node, "MobileEquipmentIdentifier");
+-	plist_dict_set_item(ret, "MEID", plist_copy(value_node));
++	if (value_node)
++		plist_dict_set_item(ret, "MEID", plist_copy(value_node));
+ 
+ 	value_node = plist_dict_get_item(root_node, "PhoneNumber");
+ 	if (value_node && (plist_get_node_type(value_node) == PLIST_STRING)) {
+-- 
+2.14.1
+
+
+From c8c7adfd0e910ba5763777a25ce99f4f9143073f Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 5 Oct 2016 17:07:09 +0200
+Subject: [PATCH 35/65] idevicebackup2: Suppress repeated printing of global
+ status when 100% is reached
+
+---
+ tools/idevicebackup2.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index eb78b06..7b15897 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -1999,6 +1999,7 @@ checkpoint:
+ 			int file_count = 0;
+ 			int errcode = 0;
+ 			const char *errdesc = NULL;
++			int progress_finished = 0;
+ 
+ 			/* process series of DLMessage* operations */
+ 			do {
+@@ -2226,7 +2227,10 @@ checkpoint:
+ 				}
+ 
+ 				/* print status */
+-				if (overall_progress > 0) {
++				if ((overall_progress > 0) && !progress_finished) {
++					if (overall_progress >= 100.0f) {
++						progress_finished = 1;
++					}
+ 					print_progress_real(overall_progress, 0);
+ 					PRINT_VERBOSE(1, " Finished\n");
+ 				}
+-- 
+2.14.1
+
+
+From 5dd8b52915cb5d9be91549366e989b28f3e29890 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 21 Oct 2016 14:29:56 +0200
+Subject: [PATCH 36/65] idevicebackup2: Use remove_file() wrapper instead of
+ remove()
+
+---
+ tools/idevicebackup2.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index 7b15897..f47ff33 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -960,7 +960,7 @@ static int mb2_handle_receive_files(mobilebackup2_client_t mobilebackup2, plist_
+ 			PRINT_VERBOSE(1, "Found new flag %02x\n", code);
+ 		}
+ 
+-		remove(bname);
++		remove_file(bname);
+ 		f = fopen(bname, "wb");
+ 		while (f && (code == CODE_FILE_DATA)) {
+ 			blocksize = nlen-1;
+@@ -1030,7 +1030,7 @@ static int mb2_handle_receive_files(mobilebackup2_client_t mobilebackup2, plist_
+ 		fname = (char*)malloc(nlen-1);
+ 		mobilebackup2_receive_raw(mobilebackup2, fname, nlen-1, &r);
+ 		free(fname);
+-		remove(bname);
++		remove_file(bname);
+ 	}
+ 
+ 	/* clean up */
+@@ -1795,7 +1795,7 @@ checkpoint:
+ 				info_plist = NULL;
+ 			}
+ 			info_plist = mobilebackup_factory_info_plist_new(udid, device, lockdown, afc);
+-			remove(info_path);
++			remove_file(info_path);
+ 			plist_write_to_filename(info_plist, info_path, PLIST_FORMAT_XML);
+ 			free(info_path);
+ 
+-- 
+2.14.1
+
+
+From 2c16751bafb41a049e30f211c2a21c3b8c68259e Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 21 Oct 2016 14:51:02 +0200
+Subject: [PATCH 37/65] idevicebackup2: Don't report an error when file to
+ remove doesn't exist
+
+---
+ tools/idevicebackup2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index f47ff33..d355200 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -2128,7 +2128,7 @@ checkpoint:
+ 								} else {
+ 									res = remove_file(newpath);
+ 								}
+-								if (res != 0) {
++								if (res != 0 && res != ENOENT) {
+ 									if (!suppress_warning)
+ 										printf("Could not remove '%s': %s (%d)\n", newpath, strerror(res), res);
+ 									errcode = errno_to_device_error(res);
+-- 
+2.14.1
+
+
+From 8c37b9ca13211c197f3452356b73114c39f549fd Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 2 Nov 2016 16:31:04 +0100
+Subject: [PATCH 38/65] idevicebackup2: Fix heap buffer out-of-bounds write
+ caused by wrong buffer size
+
+---
+ tools/idevicebackup2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index d355200..bb7f5c3 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -280,7 +280,7 @@ static char* get_uuid()
+ {
+ 	const char *chars = "ABCDEF0123456789";
+ 	int i = 0;
+-	char *uuid = (char*)malloc(sizeof(char) * 32);
++	char *uuid = (char*)malloc(sizeof(char) * 33);
+ 
+ 	srand(time(NULL));
+ 
+-- 
+2.14.1
+
+
+From 23069d10341ce637fdad7321d447c53752dba48c Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 4 Nov 2016 02:11:39 +0100
+Subject: [PATCH 39/65] userpref: [GnuTLS] Fix pairing record generation and
+ improve error handling
+
+In newer GnuTLS versions the parameters supplied to
+gnutls_x509_privkey_import_rsa_raw() are actually checked for somewhat
+sane values. Since we were passing the same values for all parameters,
+this check fails and the device certificate is never generated.
+However due to missing checks the pairing record was saved anyway, with
+an empty device certificate. This led to TLS errors during communication,
+leading to the "GnuTLS: Error in pull function" error message appearing
+and the communication to fail.
+This commit fixes the issue by passing some sane values, and also improves
+the overall error handling during generation of the paring record.
+---
+ common/userpref.c | 85 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 45 insertions(+), 40 deletions(-)
+
+diff --git a/common/userpref.c b/common/userpref.c
+index d22c7f5..3ae503a 100644
+--- a/common/userpref.c
++++ b/common/userpref.c
+@@ -643,15 +643,13 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 	gnutls_x509_crt_export(host_cert, GNUTLS_X509_FMT_PEM, host_cert_pem.data, &host_cert_export_size);
+ 	host_cert_pem.size = host_cert_export_size;
+ 
+-	ret = USERPREF_E_UNKNOWN_ERROR;
+-
+ 	gnutls_datum_t modulus = { NULL, 0 };
+ 	gnutls_datum_t exponent = { NULL, 0 };
+ 
+ 	/* now decode the PEM encoded key */
+-	gnutls_datum_t der_pub_key;
+-	if (GNUTLS_E_SUCCESS == gnutls_pem_base64_decode_alloc("RSA PUBLIC KEY", &public_key, &der_pub_key)) {
+-
++	gnutls_datum_t der_pub_key = { NULL, 0 };
++	int gnutls_error = gnutls_pem_base64_decode_alloc("RSA PUBLIC KEY", &public_key, &der_pub_key);
++	if (GNUTLS_E_SUCCESS == gnutls_error) {
+ 		/* initalize asn.1 parser */
+ 		ASN1_TYPE pkcs1 = ASN1_TYPE_EMPTY;
+ 		if (ASN1_SUCCESS == asn1_array2tree(pkcs1_asn1_tab, &pkcs1, NULL)) {
+@@ -670,8 +668,14 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 
+ 				ret1 = asn1_read_value(asn1_pub_key, "modulus", modulus.data, (int*)&modulus.size);
+ 				ret2 = asn1_read_value(asn1_pub_key, "publicExponent", exponent.data, (int*)&exponent.size);
+-				if (ASN1_SUCCESS == ret1 && ASN1_SUCCESS == ret2)
+-					ret = USERPREF_E_SUCCESS;
++				if (ret1 != ASN1_SUCCESS || ret2 != ASN1_SUCCESS) {
++					gnutls_free(modulus.data);
++					modulus.data = NULL;
++					modulus.size = 0;
++					gnutls_free(exponent.data);
++					exponent.data = NULL;
++					exponent.size = 0;
++				}
+ 			}
+ 			if (asn1_pub_key)
+ 				asn1_delete_structure(&asn1_pub_key);
+@@ -679,12 +683,15 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 		if (pkcs1)
+ 			asn1_delete_structure(&pkcs1);
+ 	} else {
+-		debug_info("WARNING: Could not read public key");
++		debug_info("ERROR: Could not parse public key: %s", gnutls_strerror(gnutls_error));
+ 	}
+ 
+-	/* now generate certificates */
+-	if (USERPREF_E_SUCCESS == ret && 0 != modulus.size && 0 != exponent.size) {
+-		gnutls_datum_t essentially_null = { (unsigned char*)strdup("abababababababab"), strlen("abababababababab") };
++	/* generate device certificate */
++	if (modulus.data && 0 != modulus.size && exponent.data && 0 != exponent.size) {
++
++		gnutls_datum_t prime_p = { (unsigned char*)"\x00\xca\x4a\x03\x13\xdf\x9d\x7a\xfd", 9 };
++		gnutls_datum_t prime_q = { (unsigned char*)"\x00\xf2\xff\xe0\x15\xd1\x60\x37\x63", 9 };
++		gnutls_datum_t coeff = { (unsigned char*)"\x32\x07\xf1\x68\x57\xdf\x9a\xf4", 8 };
+ 
+ 		gnutls_x509_privkey_t fake_privkey;
+ 		gnutls_x509_crt_t dev_cert;
+@@ -692,8 +699,9 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 		gnutls_x509_privkey_init(&fake_privkey);
+ 		gnutls_x509_crt_init(&dev_cert);
+ 
+-		if (GNUTLS_E_SUCCESS == gnutls_x509_privkey_import_rsa_raw(fake_privkey, &modulus, &exponent, &essentially_null, &essentially_null, &essentially_null, &essentially_null)) {
+-			/* generate device certificate */
++		gnutls_error = gnutls_x509_privkey_import_rsa_raw(fake_privkey, &modulus, &exponent, &exponent, &prime_p, &prime_q, &coeff);
++		if (GNUTLS_E_SUCCESS == gnutls_error) {
++			/* now generate device certificate */
+ 			gnutls_x509_crt_set_key(dev_cert, fake_privkey);
+ 			gnutls_x509_crt_set_serial(dev_cert, "\x00", 1);
+ 			gnutls_x509_crt_set_version(dev_cert, 3);
+@@ -712,9 +720,8 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 			}
+ 
+ 			gnutls_x509_crt_set_key_usage(dev_cert, GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT);
+-			gnutls_x509_crt_sign(dev_cert, root_cert, root_privkey);
+-
+-			if (USERPREF_E_SUCCESS == ret) {
++			gnutls_error = gnutls_x509_crt_sign(dev_cert, root_cert, root_privkey);
++			if (GNUTLS_E_SUCCESS == gnutls_error) {
+ 				/* if everything went well, export in PEM format */
+ 				size_t export_size = 0;
+ 				gnutls_x509_crt_export(dev_cert, GNUTLS_X509_FMT_PEM, NULL, &export_size);
+@@ -722,13 +729,11 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 				gnutls_x509_crt_export(dev_cert, GNUTLS_X509_FMT_PEM, dev_cert_pem.data, &export_size);
+ 				dev_cert_pem.size = export_size;
+ 			} else {
+-				debug_info("ERROR: Signing device certificate with root private key failed!");
++				debug_info("ERROR: Signing device certificate with root private key failed: %s", gnutls_strerror(gnutls_error));
+ 			}
++		} else {
++			debug_info("ERROR: Failed to import RSA key data: %s", gnutls_strerror(gnutls_error));
+ 		}
+-
+-		if (essentially_null.data)
+-			free(essentially_null.data);
+-
+ 		gnutls_x509_crt_deinit(dev_cert);
+ 		gnutls_x509_privkey_deinit(fake_privkey);
+ 	}
+@@ -743,27 +748,27 @@ userpref_error_t pair_record_generate_keys_and_certs(plist_t pair_record, key_da
+ 
+ 	gnutls_free(der_pub_key.data);
+ #endif
+-	if (NULL != root_cert_pem.data && 0 != root_cert_pem.size &&
+-		NULL != host_cert_pem.data && 0 != host_cert_pem.size)
++
++	/* make sure that we have all we need */
++	if (root_cert_pem.data && 0 != root_cert_pem.size
++	    && root_key_pem.data && 0 != root_key_pem.size
++	    && host_cert_pem.data && 0 != host_cert_pem.size
++	    && host_key_pem.data && 0 != host_key_pem.size
++	    && dev_cert_pem.data && 0 != dev_cert_pem.size) {
++		/* now set keys and certificates */
++		pair_record_set_item_from_key_data(pair_record, USERPREF_DEVICE_CERTIFICATE_KEY, &dev_cert_pem);
++		pair_record_set_item_from_key_data(pair_record, USERPREF_HOST_PRIVATE_KEY_KEY, &host_key_pem);
++		pair_record_set_item_from_key_data(pair_record, USERPREF_HOST_CERTIFICATE_KEY, &host_cert_pem);
++		pair_record_set_item_from_key_data(pair_record, USERPREF_ROOT_PRIVATE_KEY_KEY, &root_key_pem);
++		pair_record_set_item_from_key_data(pair_record, USERPREF_ROOT_CERTIFICATE_KEY, &root_cert_pem);
+ 		ret = USERPREF_E_SUCCESS;
++	}
+ 
+-	/* now set keys and certificates */
+-	pair_record_set_item_from_key_data(pair_record, USERPREF_DEVICE_CERTIFICATE_KEY, &dev_cert_pem);
+-	pair_record_set_item_from_key_data(pair_record, USERPREF_HOST_PRIVATE_KEY_KEY, &host_key_pem);
+-	pair_record_set_item_from_key_data(pair_record, USERPREF_HOST_CERTIFICATE_KEY, &host_cert_pem);
+-	pair_record_set_item_from_key_data(pair_record, USERPREF_ROOT_PRIVATE_KEY_KEY, &root_key_pem);
+-	pair_record_set_item_from_key_data(pair_record, USERPREF_ROOT_CERTIFICATE_KEY, &root_cert_pem);
+-
+-	if (dev_cert_pem.data)
+-		free(dev_cert_pem.data);
+-	if (root_key_pem.data)
+-		free(root_key_pem.data);
+-	if (root_cert_pem.data)
+-		free(root_cert_pem.data);
+-	if (host_key_pem.data)
+-		free(host_key_pem.data);
+-	if (host_cert_pem.data)
+-		free(host_cert_pem.data);
++	free(dev_cert_pem.data);
++	free(root_key_pem.data);
++	free(root_cert_pem.data);
++	free(host_key_pem.data);
++	free(host_cert_pem.data);
+ 
+ 	return ret;
+ }
+-- 
+2.14.1
+
+
+From a1c728578930fb49e45497d1be7c9bc0c83607f1 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 27 Nov 2016 14:27:33 +0100
+Subject: [PATCH 40/65] idevicebackup2: Plug some small memory leaks
+
+---
+ tools/idevicebackup2.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index bb7f5c3..8dc32c5 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -351,6 +351,7 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, idevice_t d
+ 						plist_dict_set_item(adict, "iTunesMetadata", plist_copy(meta));
+ 						plist_dict_set_item(app_dict, bundle_id_str, adict);
+ 					}
++					free(bundle_id_str);
+ 				}
+ 				if ((time(NULL) - starttime) > 5) {
+ 					// make sure our lockdown connection doesn't time out in case this takes longer
+@@ -2003,10 +2004,8 @@ checkpoint:
+ 
+ 			/* process series of DLMessage* operations */
+ 			do {
+-				if (dlmsg) {
+-					free(dlmsg);
+-					dlmsg = NULL;
+-				}
++				free(dlmsg);
++				dlmsg = NULL;
+ 				mobilebackup2_receive_message(mobilebackup2, &message, &dlmsg);
+ 				if (!message || !dlmsg) {
+ 					PRINT_VERBOSE(1, "Device is not ready yet. Going to try again in 2 seconds...\n");
+@@ -2236,11 +2235,9 @@ checkpoint:
+ 				}
+ 
+ files_out:
+-				if (message)
+-					plist_free(message);
++				plist_free(message);
+ 				message = NULL;
+-				if (dlmsg)
+-					free(dlmsg);
++				free(dlmsg);
+ 				dlmsg = NULL;
+ 
+ 				if (quit_flag > 0) {
+@@ -2256,6 +2253,9 @@ files_out:
+ 				}
+ 			} while (1);
+ 
++			plist_free(message);
++			free(dlmsg);
++
+ 			/* report operation status to user */
+ 			switch (cmd) {
+ 				case CMD_CLOUD:
+-- 
+2.14.1
+
+
+From 2a9e6fe37467bfb13b415d7654f825269e08603f Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 1 Dec 2016 03:43:05 +0100
+Subject: [PATCH 41/65] misagent: Add new misagent_copy_all() function
+ (introduced in iOS 9.3)
+
+---
+ include/libimobiledevice/misagent.h | 24 +++++++++++++++++++++-
+ src/misagent.c                      | 40 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/include/libimobiledevice/misagent.h b/include/libimobiledevice/misagent.h
+index 92165f2..09af57a 100644
+--- a/include/libimobiledevice/misagent.h
++++ b/include/libimobiledevice/misagent.h
+@@ -101,7 +101,7 @@ misagent_error_t misagent_client_free(misagent_client_t client);
+ misagent_error_t misagent_install(misagent_client_t client, plist_t profile);
+ 
+ /**
+- * Retrieves an array of all installed provisioning profiles.
++ * Retrieves all installed provisioning profiles (iOS 9.2.1 or below).
+  *
+  * @param client The connected misagent to use.
+  * @param profiles Pointer to a plist_t that will be set to a PLIST_ARRAY
+@@ -110,12 +110,34 @@ misagent_error_t misagent_install(misagent_client_t client, plist_t profile);
+  * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
+  *     client is invalid, or an MISAGENT_E_* error code otherwise.
+  *
++ * @note This API call only works with iOS 9.2.1 or below.
++ *     For newer iOS versions use misagent_copy_all() instead.
++ *
+  * @note If no provisioning profiles are installed on the device, this function
+  *     still returns MISAGENT_E_SUCCESS and profiles will just point to an
+  *     empty array.
+  */
+ misagent_error_t misagent_copy(misagent_client_t client, plist_t* profiles);
+ 
++/**
++ * Retrieves all installed provisioning profiles (iOS 9.3 or higher).
++ *
++ * @param client The connected misagent to use.
++ * @param profiles Pointer to a plist_t that will be set to a PLIST_ARRAY
++ *    if the function is successful.
++ *
++ * @return MISAGENT_E_SUCCESS on success, MISAGENT_E_INVALID_ARG when
++ *     client is invalid, or an MISAGENT_E_* error code otherwise.
++ *
++ * @note This API call only works with iOS 9.3 or higher.
++ *     For older iOS versions use misagent_copy() instead.
++ *
++ * @note If no provisioning profiles are installed on the device, this function
++ *     still returns MISAGENT_E_SUCCESS and profiles will just point to an
++ *     empty array.
++ */
++misagent_error_t misagent_copy_all(misagent_client_t client, plist_t* profiles);
++
+ /**
+  * Removes a given provisioning profile.
+  *
+diff --git a/src/misagent.c b/src/misagent.c
+index 2dd3451..095edba 100644
+--- a/src/misagent.c
++++ b/src/misagent.c
+@@ -202,6 +202,46 @@ LIBIMOBILEDEVICE_API misagent_error_t misagent_copy(misagent_client_t client, pl
+ 
+ }
+ 
++LIBIMOBILEDEVICE_API misagent_error_t misagent_copy_all(misagent_client_t client, plist_t* profiles)
++{
++	if (!client || !client->parent || !profiles)
++		return MISAGENT_E_INVALID_ARG;
++
++	client->last_error = MISAGENT_E_UNKNOWN_ERROR;
++
++	plist_t dict = plist_new_dict();
++	plist_dict_set_item(dict, "MessageType", plist_new_string("CopyAll"));
++	plist_dict_set_item(dict, "ProfileType", plist_new_string("Provisioning"));
++
++	misagent_error_t res = misagent_error(property_list_service_send_xml_plist(client->parent, dict));
++	plist_free(dict);
++	dict = NULL;
++
++	if (res != MISAGENT_E_SUCCESS) {
++		debug_info("could not send plist, error %d", res);
++		return res;
++	}
++
++	res = misagent_error(property_list_service_receive_plist(client->parent, &dict));
++	if (res != MISAGENT_E_SUCCESS) {
++		debug_info("could not receive response, error %d", res);
++		return res;
++	}
++	if (!dict) {
++		debug_info("could not get response plist");
++		return MISAGENT_E_UNKNOWN_ERROR;
++	}
++
++	res = misagent_check_result(dict, &client->last_error);
++	if (res == MISAGENT_E_SUCCESS) {
++		*profiles = plist_copy(plist_dict_get_item(dict, "Payload"));
++	}
++	plist_free(dict);
++
++	return res;
++
++}
++
+ LIBIMOBILEDEVICE_API misagent_error_t misagent_remove(misagent_client_t client, const char* profileID)
+ {
+ 	if (!client || !client->parent || !profileID)
+-- 
+2.14.1
+
+
+From 76def2b68e7f2fbfc02315d29284fd74dabed8dc Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 1 Dec 2016 03:51:15 +0100
+Subject: [PATCH 42/65] ideviceprovision: Use newer API to get list of profiles
+ on iOS 9.3+
+
+---
+ tools/ideviceprovision.c | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 4915c05..77c27dc 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -3,7 +3,7 @@
+  * Simple utility to install, get, or remove provisioning profiles
+  *   to/from idevices
+  *
+- * Copyright (c) 2012 Nikias Bassen, All Rights Reserved.
++ * Copyright (c) 2012-2016 Nikias Bassen, All Rights Reserved.
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -390,6 +390,28 @@ int main(int argc, char *argv[])
+ 		return -1;
+ 	}
+ 
++	plist_t pver = NULL;
++	char *pver_s = NULL;
++	lockdownd_get_value(client, NULL, "ProductVersion", &pver);
++	if (pver && plist_get_node_type(pver) == PLIST_STRING) {
++		plist_get_string_val(pver, &pver_s);
++	}
++	plist_free(pver);
++	int product_version_major = 0;
++	int product_version_minor = 0;
++	int product_version_patch = 0;
++	if (pver_s) {
++		sscanf(pver_s, "%d.%d.%d", &product_version_major, &product_version_minor, &product_version_patch);
++		free(pver_s);
++	}
++	if (product_version_major == 0) {
++		fprintf(stderr, "ERROR: Could not determine the device's ProductVersion\n");
++		lockdownd_client_free(client);
++		idevice_free(device);
++		return -1;
++	}
++	int product_version = ((product_version_major & 0xFF) << 16) | ((product_version_minor & 0xFF) << 8) | (product_version_patch & 0xFF);
++
+ 	if (LOCKDOWN_E_SUCCESS != lockdownd_start_service(client, "com.apple.misagent", &service)) {
+ 		fprintf(stderr, "Could not start service \"com.apple.misagent\"\n");
+ 		lockdownd_client_free(client);
+@@ -437,7 +459,13 @@ int main(int argc, char *argv[])
+ 		case OP_COPY:
+ 		{
+ 			plist_t profiles = NULL;
+-			if (misagent_copy(mis, &profiles) == MISAGENT_E_SUCCESS) {
++			misagent_error_t merr;
++			if (product_version < 0x090300) {
++				merr = misagent_copy(mis, &profiles);
++			} else {
++				merr = misagent_copy_all(mis, &profiles);
++			}
++			if (merr == MISAGENT_E_SUCCESS) {
+ 				uint32_t num_profiles = plist_array_get_size(profiles);
+ 				printf("Device has %d provisioning %s installed:\n", num_profiles, (num_profiles == 1) ? "profile" : "profiles");
+ 				uint32_t j;
+-- 
+2.14.1
+
+
+From 9083475cd899a09040b265863fcfee0b390c89b3 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 1 Dec 2016 03:52:16 +0100
+Subject: [PATCH 43/65] ideviceprovision: Check output directory parameter for
+ 'copy' command and return exit code on error
+
+---
+ tools/ideviceprovision.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 77c27dc..7938580 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -27,6 +27,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ 
+ #ifdef WIN32
+ #include <windows.h>
+@@ -254,6 +255,7 @@ int main(int argc, char *argv[])
+ 	lockdownd_service_descriptor_t service = NULL;
+ 	idevice_t device = NULL;
+ 	idevice_error_t ret = IDEVICE_E_UNKNOWN_ERROR;
++	int res = 0;
+ 	int i;
+ 	int op = -1;
+ 	int output_xml = 0;
+@@ -338,7 +340,6 @@ int main(int argc, char *argv[])
+ 	}
+ 
+ 	if (op == OP_DUMP) {
+-		int res = 0;
+ 		unsigned char* profile_data = NULL;
+ 		unsigned int profile_size = 0;
+ 		if (profile_read_from_file(param, &profile_data, &profile_size) != 0) {
+@@ -372,6 +373,12 @@ int main(int argc, char *argv[])
+ 		plist_free(pl);
+ 
+ 		return res;
++	} else if (op == OP_COPY) {
++		struct stat st;
++		if ((stat(param, &st) < 0) || !S_ISDIR(st.st_mode)) {
++			fprintf(stderr, "ERROR: %s does not exist or is not a directory!\n", param);
++			return -1;
++		}
+ 	}
+ 
+ 	ret = idevice_new(&device, udid);
+@@ -502,19 +509,16 @@ int main(int argc, char *argv[])
+ 							fclose(f);
+ 							printf(" => %s\n", pfname);
+ 						} else {
+-							fprintf(stderr, "Could not open '%s' for writing\n", pfname);
++							fprintf(stderr, "Could not open '%s' for writing: %s\n", pfname, strerror(errno));
+ 						}
+ 					}
+-					if (p_uuid) {
+-						free(p_uuid);
+-					}
+-					if (p_name) {
+-						free(p_name);
+-					}
++					free(p_uuid);
++					free(p_name);
+ 				}
+ 			} else {
+ 				int sc = misagent_get_status_code(mis);
+ 				fprintf(stderr, "Could not get installed profiles from device, status code: 0x%x\n", sc);
++				res = -1;
+ 			}
+ 		}
+ 			break;
+@@ -534,6 +538,6 @@ int main(int argc, char *argv[])
+ 
+ 	idevice_free(device);
+ 
+-	return 0;
++	return res;
+ }
+ 
+-- 
+2.14.1
+
+
+From 9df4e695c55ddd319c5acaf7fa21f960afaa1e90 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 1 Dec 2016 03:56:00 +0100
+Subject: [PATCH 44/65] ideviceprovision: Allow copying single profiles instead
+ of all
+
+---
+ tools/ideviceprovision.c | 38 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 7938580..79293bc 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -27,6 +27,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <sys/stat.h>
+ #include <errno.h>
+ 
+ #ifdef WIN32
+@@ -54,6 +55,9 @@ static void print_usage(int argc, char **argv)
+ 	printf("  copy PATH\tRetrieves all provisioning profiles from the device and\n");
+ 	printf("           \tstores them into the existing directory specified by PATH.\n");
+ 	printf("           \tThe files will be stored as UUID.mobileprovision\n");
++	printf("  copy UUID PATH  Retrieves the provisioning profile identified by UUID\n");
++	printf("           \tfrom the device and stores it into the exisiting directory\n");
++	printf("           \tspecified by PATH. The file will be stored as UUID.mobileprovision.\n");
+ 	printf("  remove UUID\tRemoves the provisioning profile identified by UUID.\n");
+ 	printf("  dump FILE\tPrints detailed information about the provisioning profile\n");
+ 	printf("           \tspecified by FILE.\n\n");
+@@ -261,6 +265,7 @@ int main(int argc, char *argv[])
+ 	int output_xml = 0;
+ 	const char* udid = NULL;
+ 	const char* param = NULL;
++	const char* param2 = NULL;
+ 
+ 	/* parse cmdline args */
+ 	for (i = 1; i < argc; i++) {
+@@ -298,6 +303,10 @@ int main(int argc, char *argv[])
+ 			}
+ 			param = argv[i];
+ 			op = OP_COPY;
++			i++;
++			if (argv[i] && (strlen(argv[i]) > 0)) {
++				param2 = argv[i];
++			}
+ 			continue;
+ 		}
+ 		else if (!strcmp(argv[i], "remove")) {
+@@ -375,8 +384,9 @@ int main(int argc, char *argv[])
+ 		return res;
+ 	} else if (op == OP_COPY) {
+ 		struct stat st;
+-		if ((stat(param, &st) < 0) || !S_ISDIR(st.st_mode)) {
+-			fprintf(stderr, "ERROR: %s does not exist or is not a directory!\n", param);
++		const char *checkdir = (param2) ? param2 : param;
++		if ((stat(checkdir, &st) < 0) || !S_ISDIR(st.st_mode)) {
++			fprintf(stderr, "ERROR: %s does not exist or is not a directory!\n", checkdir);
+ 			return -1;
+ 		}
+ 	}
+@@ -473,10 +483,13 @@ int main(int argc, char *argv[])
+ 				merr = misagent_copy_all(mis, &profiles);
+ 			}
+ 			if (merr == MISAGENT_E_SUCCESS) {
++				int found_match = 0;
+ 				uint32_t num_profiles = plist_array_get_size(profiles);
+-				printf("Device has %d provisioning %s installed:\n", num_profiles, (num_profiles == 1) ? "profile" : "profiles");
++				if (op == OP_LIST || !param2) {
++					printf("Device has %d provisioning %s installed:\n", num_profiles, (num_profiles == 1) ? "profile" : "profiles");
++				}
+ 				uint32_t j;
+-				for (j = 0; j < num_profiles; j++) {
++				for (j = 0; !found_match && j < num_profiles; j++) {
+ 					char* p_name = NULL;
+ 					char* p_uuid = NULL;
+ 					plist_t profile = plist_array_get_item(profiles, j);
+@@ -492,13 +505,22 @@ int main(int argc, char *argv[])
+ 							plist_get_string_val(node, &p_uuid);
+ 						}
+ 					}
++					if (param2) {
++						if (p_uuid && !strcmp(p_uuid, param)) {
++							found_match = 1;
++						} else {
++							free(p_uuid);
++							free(p_name);
++							continue;
++						}
++					}
+ 					printf("%s - %s\n", (p_uuid) ? p_uuid : "(unknown id)", (p_name) ? p_name : "(no name)");
+ 					if (op == OP_COPY) {
+ 						char pfname[512];
+ 						if (p_uuid) {
+-							sprintf(pfname, "%s/%s.mobileprovision", param, p_uuid);
++							sprintf(pfname, "%s/%s.mobileprovision", (param2) ? param2 : param, p_uuid);
+ 						} else {
+-							sprintf(pfname, "%s/profile%d.mobileprovision", param, j);
++							sprintf(pfname, "%s/profile%d.mobileprovision", (param2) ? param2 : param, j);
+ 						}
+ 						FILE* f = fopen(pfname, "wb");
+ 						if (f) {
+@@ -515,6 +537,10 @@ int main(int argc, char *argv[])
+ 					free(p_uuid);
+ 					free(p_name);
+ 				}
++				if (param2 && !found_match) {
++					fprintf(stderr, "Profile '%s' was not found on the device.\n", param);
++					res = -1;
++				}
+ 			} else {
+ 				int sc = misagent_get_status_code(mis);
+ 				fprintf(stderr, "Could not get installed profiles from device, status code: 0x%x\n", sc);
+-- 
+2.14.1
+
+
+From d936514291c0f65ecb0448f3a4aad1b40517f468 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 15 Dec 2016 02:39:37 +0100
+Subject: [PATCH 45/65] ideviceprovision: Add new remove-all command to remove
+ all installed profiles at once
+
+---
+ tools/ideviceprovision.c | 65 +++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 61 insertions(+), 4 deletions(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 79293bc..26ec418 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -59,6 +59,7 @@ static void print_usage(int argc, char **argv)
+ 	printf("           \tfrom the device and stores it into the exisiting directory\n");
+ 	printf("           \tspecified by PATH. The file will be stored as UUID.mobileprovision.\n");
+ 	printf("  remove UUID\tRemoves the provisioning profile identified by UUID.\n");
++	printf("  remove-all\tRemoves all installed provisioning profiles.\n");
+ 	printf("  dump FILE\tPrints detailed information about the provisioning profile\n");
+ 	printf("           \tspecified by FILE.\n\n");
+ 	printf(" The following OPTIONS are accepted:\n");
+@@ -319,6 +320,11 @@ int main(int argc, char *argv[])
+ 			op = OP_REMOVE;
+ 			continue;
+ 		}
++		else if (!strcmp(argv[i], "remove-all")) {
++			i++;
++			op = OP_REMOVE;
++			continue;
++		}
+ 		else if (!strcmp(argv[i], "dump")) {
+ 			i++;
+ 			if (!argv[i] || (strlen(argv[i]) < 1)) {
+@@ -546,14 +552,65 @@ int main(int argc, char *argv[])
+ 				fprintf(stderr, "Could not get installed profiles from device, status code: 0x%x\n", sc);
+ 				res = -1;
+ 			}
++			plist_free(profiles);
+ 		}
+ 			break;
+ 		case OP_REMOVE:
+-			if (misagent_remove(mis, param) == MISAGENT_E_SUCCESS) {
+-				printf("Profile '%s' removed.\n", param);
++			if (param) {
++				/* remove specified provisioning profile */
++				if (misagent_remove(mis, param) == MISAGENT_E_SUCCESS) {
++					printf("Profile '%s' removed.\n", param);
++				} else {
++					int sc = misagent_get_status_code(mis);
++					fprintf(stderr, "Could not remove profile '%s', status code 0x%x\n", param, sc);
++				}
+ 			} else {
+-				int sc = misagent_get_status_code(mis);
+-				fprintf(stderr, "Could not remove profile '%s', status code 0x%x\n", param, sc);
++				/* remove all provisioning profiles */
++				plist_t profiles = NULL;
++				misagent_error_t merr;
++				if (product_version < 0x090300) {
++					merr = misagent_copy(mis, &profiles);
++				} else {
++					merr = misagent_copy_all(mis, &profiles);
++				}
++				if (merr == MISAGENT_E_SUCCESS) {
++					uint32_t j;
++					uint32_t num_removed = 0;
++					for (j = 0; j < plist_array_get_size(profiles); j++) {
++						char* p_name = NULL;
++						char* p_uuid = NULL;
++						plist_t profile = plist_array_get_item(profiles, j);
++						plist_t pl = profile_get_embedded_plist(profile);
++						if (pl && (plist_get_node_type(pl) == PLIST_DICT)) {
++							plist_t node;
++							node = plist_dict_get_item(pl, "Name");
++							if (node && (plist_get_node_type(node) == PLIST_STRING)) {
++								plist_get_string_val(node, &p_name);
++							}
++							node = plist_dict_get_item(pl, "UUID");
++							if (node && (plist_get_node_type(node) == PLIST_STRING)) {
++								plist_get_string_val(node, &p_uuid);
++							}
++						}
++						if (p_uuid) {
++							if (misagent_remove(mis, p_uuid) == MISAGENT_E_SUCCESS) {
++								printf("OK profile removed: %s - %s\n", p_uuid, (p_name) ? p_name : "(no name)");
++								num_removed++;
++							} else {
++								int sc = misagent_get_status_code(mis);
++								printf("FAIL profile not removed: %s - %s (status code 0x%x)\n", p_uuid, (p_name) ? p_name : "(no name)", sc);
++							}
++						}
++						free(p_name);
++						free(p_uuid);
++					}
++					printf("%d profiles removed.\n", num_removed);
++				} else {
++					int sc = misagent_get_status_code(mis);
++					fprintf(stderr, "Could not get installed profiles from device, status code: 0x%x\n", sc);
++					res = -1;
++				}
++				plist_free(profiles);
+ 			}
+ 			break;
+ 		default:
+-- 
+2.14.1
+
+
+From c7f24a92f29180b50c0d92df34310f2179ba24cb Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 15 Dec 2016 02:57:31 +0100
+Subject: [PATCH 46/65] idevicebackup2: Fix logical bug when checking for
+ success of backup operation
+
+The condition in line 2278 is incorrectly evaluated when
+mb2_status_check_snapshot_state() isn't able to read the Status.plist file.
+While `if (-1) { ... }` will be a 'false' condition, `if (1 && -1) { ... }`
+will be 'true' which in this case would make idevicebackup2 assume the backup
+was successful while it was not.
+This commit fixes this issue by changing the default return value of
+mb2_status_check_snapshot_state() to be 0 (false).
+
+Thanks to Xiao Deng for pointing out this issue!
+---
+ tools/idevicebackup2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/idevicebackup2.c b/tools/idevicebackup2.c
+index 8dc32c5..e6c1d3f 100644
+--- a/tools/idevicebackup2.c
++++ b/tools/idevicebackup2.c
+@@ -491,7 +491,7 @@ static plist_t mobilebackup_factory_info_plist_new(const char* udid, idevice_t d
+ 
+ static int mb2_status_check_snapshot_state(const char *path, const char *udid, const char *matches)
+ {
+-	int ret = -1;
++	int ret = 0;
+ 	plist_t status_plist = NULL;
+ 	char *file_path = string_build_path(path, udid, "Status.plist", NULL);
+ 
+-- 
+2.14.1
+
+
+From 2b8313181fb52cecd1db20f11c0da0c2c169050a Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 21 Dec 2016 01:29:54 +0100
+Subject: [PATCH 47/65] cython: Make sure to pass correct CFLAGS for libplist
+
+---
+ cython/Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cython/Makefile.am b/cython/Makefile.am
+index 94ff728..fb9a2e4 100644
+--- a/cython/Makefile.am
++++ b/cython/Makefile.am
+@@ -1,6 +1,6 @@
+ AM_CPPFLAGS = -I$(top_srcdir)/include
+ 
+-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libgnutls_CFLAGS) $(libtasn1_CFLAGS) $(openssl_CFLAGS) $(LFS_CFLAGS)
++AM_CFLAGS = $(GLOBAL_CFLAGS) $(libgnutls_CFLAGS) $(libtasn1_CFLAGS) $(openssl_CFLAGS) $(libplist_CFLAGS) $(LFS_CFLAGS)
+ AM_LDFLAGS = $(libgnutls_LIBS) $(libtasn1_LIBS) $(openssl_LIBS) $(libplist_LIBS)
+ 
+ if HAVE_CYTHON
+-- 
+2.14.1
+
+
+From a80ba9363b4dc0ea1bcdad152cf2cdc974636ad6 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 22 Dec 2016 14:40:46 +0100
+Subject: [PATCH 48/65] ideviceprovision: Fix ASN1 parsing for large
+ provisioning profiles
+
+---
+ tools/ideviceprovision.c | 47 +++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 35 insertions(+), 12 deletions(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index 26ec418..db00702 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -87,30 +87,47 @@ enum {
+ 
+ static void asn1_next_item(unsigned char** p)
+ {
+-	if (*(*p+1) & 0x80) {
+-		*p += 4;
++	char bsize = *(*p+1);
++	if (bsize & 0x80) {
++		*p += 2 + (bsize & 0xF);
+ 	} else {
+ 		*p += 3;
+ 	}
+ }
+ 
+-static int asn1_item_get_size(unsigned char* p)
++static size_t asn1_item_get_size(unsigned char* p)
+ {
+-	int res = 0;
+-	if (*(p+1) & 0x80) {
++	size_t res = 0;
++	char bsize = *(p+1);
++	if (bsize & 0x80) {
+ 		uint16_t ws = 0;
+-		memcpy(&ws, p+2, 2);
+-		ws = ntohs(ws);
+-		res = ws;
++		uint32_t ds = 0;
++		switch (bsize & 0xF) {
++		case 2:
++			ws = *(uint16_t*)(p+2);
++			res = ntohs(ws);
++			break;
++		case 3:
++			ds = *(uint32_t*)(p+2);
++			res = ntohl(ds) >> 8;
++			break;
++		case 4:
++			ds = *(uint32_t*)(p+2);
++			res = ntohl(ds);
++			break;
++		default:
++			fprintf(stderr, "ERROR: Invalid or unimplemented byte size %d\n", bsize & 0xF);
++			break;
++		}
+ 	} else {
+-		res = (int) *(p+1);
++		res = (int)bsize;
+ 	}
+ 	return res;
+ }
+ 
+ static void asn1_skip_item(unsigned char** p)
+ {
+-	int sz = asn1_item_get_size(*p);
++	size_t sz = asn1_item_get_size(*p);
+ 	*p += 2;
+ 	*p += sz;
+ }
+@@ -136,8 +153,14 @@ static plist_t profile_get_embedded_plist(plist_t profile)
+ 		fprintf(stderr, "%s: unexpected profile data (0)\n", __func__);
+ 		return NULL;
+ 	}
+-	uint16_t slen = asn1_item_get_size(pp);
+-	if (slen+4 != (uint16_t)blen) {
++	size_t slen = asn1_item_get_size(pp);
++	char bsize = *(pp+1);
++	if (bsize & 0x80) {
++		slen += 2 + bsize & 0xF;
++	} else {
++		slen += 3;
++	}
++	if (slen != blen) {
+ 		free(bbuf);
+ 		fprintf(stderr, "%s: unexpected profile data (1)\n", __func__);
+ 		return NULL;
+-- 
+2.14.1
+
+
+From 038bb5902fcc4e981fb349fbba629eab2bdf93ff Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sat, 31 Dec 2016 02:59:36 +0100
+Subject: [PATCH 49/65] Add ax_pthread.m4 for proper pthread cflags/ldflags
+
+---
+ configure.ac     |  18 +--
+ m4/ax_pthread.m4 | 485 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/Makefile.am  |   4 +-
+ 3 files changed, 495 insertions(+), 12 deletions(-)
+ create mode 100644 m4/ax_pthread.m4
+
+diff --git a/configure.ac b/configure.ac
+index 26fe819..e41baa3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -66,25 +66,23 @@ if test "x$ac_cv_have_endian_h" = "xno"; then
+ fi
+ 
+ # Check for operating system
+-AC_MSG_CHECKING([whether to enable WIN32 build settings])
++AC_MSG_CHECKING([whether we need platform-specific build settings])
+ case ${host_os} in
+   *mingw32*|*cygwin*)
+-    win32=true
+     AC_MSG_RESULT([yes])
+-    AC_CHECK_TOOL([WINDRES], [windres], AC_MSG_ERROR([windres not found]))
+-    AC_SUBST(WINDRES)
++    win32=true
+     ;;
+-  *)
+-    win32=false
++  darwin*)
+     AC_MSG_RESULT([no])
+     ;;
++  *)
++    AC_MSG_RESULT([yes])
++    AX_PTHREAD([], [AC_MSG_ERROR([pthread is required to build $PACKAGE_NAME])])
++    AC_CHECK_LIB(pthread, [pthread_once], [], [AC_MSG_ERROR([pthread with pthread_once required to build $PACKAGE_NAME])])
++    ;;
+ esac
+ AM_CONDITIONAL(WIN32, test x$win32 = xtrue)
+ 
+-if test "x$win32" != xtrue; then
+-  AC_CHECK_LIB(pthread, [pthread_create, pthread_mutex_lock], [AC_SUBST(libpthread_LIBS,[-lpthread])], [AC_MSG_ERROR([libpthread is required to build libimobiledevice])])
+-fi
+-
+ # Cython Python Bindings
+ AC_ARG_WITH([cython],
+             [AS_HELP_STRING([--without-cython],
+diff --git a/m4/ax_pthread.m4 b/m4/ax_pthread.m4
+new file mode 100644
+index 0000000..4c4051e
+--- /dev/null
++++ b/m4/ax_pthread.m4
+@@ -0,0 +1,485 @@
++# ===========================================================================
++#        http://www.gnu.org/software/autoconf-archive/ax_pthread.html
++# ===========================================================================
++#
++# SYNOPSIS
++#
++#   AX_PTHREAD([ACTION-IF-FOUND[, ACTION-IF-NOT-FOUND]])
++#
++# DESCRIPTION
++#
++#   This macro figures out how to build C programs using POSIX threads. It
++#   sets the PTHREAD_LIBS output variable to the threads library and linker
++#   flags, and the PTHREAD_CFLAGS output variable to any special C compiler
++#   flags that are needed. (The user can also force certain compiler
++#   flags/libs to be tested by setting these environment variables.)
++#
++#   Also sets PTHREAD_CC to any special C compiler that is needed for
++#   multi-threaded programs (defaults to the value of CC otherwise). (This
++#   is necessary on AIX to use the special cc_r compiler alias.)
++#
++#   NOTE: You are assumed to not only compile your program with these flags,
++#   but also to link with them as well. For example, you might link with
++#   $PTHREAD_CC $CFLAGS $PTHREAD_CFLAGS $LDFLAGS ... $PTHREAD_LIBS $LIBS
++#
++#   If you are only building threaded programs, you may wish to use these
++#   variables in your default LIBS, CFLAGS, and CC:
++#
++#     LIBS="$PTHREAD_LIBS $LIBS"
++#     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
++#     CC="$PTHREAD_CC"
++#
++#   In addition, if the PTHREAD_CREATE_JOINABLE thread-attribute constant
++#   has a nonstandard name, this macro defines PTHREAD_CREATE_JOINABLE to
++#   that name (e.g. PTHREAD_CREATE_UNDETACHED on AIX).
++#
++#   Also HAVE_PTHREAD_PRIO_INHERIT is defined if pthread is found and the
++#   PTHREAD_PRIO_INHERIT symbol is defined when compiling with
++#   PTHREAD_CFLAGS.
++#
++#   ACTION-IF-FOUND is a list of shell commands to run if a threads library
++#   is found, and ACTION-IF-NOT-FOUND is a list of commands to run it if it
++#   is not found. If ACTION-IF-FOUND is not specified, the default action
++#   will define HAVE_PTHREAD.
++#
++#   Please let the authors know if this macro fails on any platform, or if
++#   you have any other suggestions or comments. This macro was based on work
++#   by SGJ on autoconf scripts for FFTW (http://www.fftw.org/) (with help
++#   from M. Frigo), as well as ac_pthread and hb_pthread macros posted by
++#   Alejandro Forero Cuervo to the autoconf macro repository. We are also
++#   grateful for the helpful feedback of numerous users.
++#
++#   Updated for Autoconf 2.68 by Daniel Richard G.
++#
++# LICENSE
++#
++#   Copyright (c) 2008 Steven G. Johnson <stevenj@alum.mit.edu>
++#   Copyright (c) 2011 Daniel Richard G. <skunk@iSKUNK.ORG>
++#
++#   This program is free software: you can redistribute it and/or modify it
++#   under the terms of the GNU General Public License as published by the
++#   Free Software Foundation, either version 3 of the License, or (at your
++#   option) any later version.
++#
++#   This program is distributed in the hope that it will be useful, but
++#   WITHOUT ANY WARRANTY; without even the implied warranty of
++#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
++#   Public License for more details.
++#
++#   You should have received a copy of the GNU General Public License along
++#   with this program. If not, see <http://www.gnu.org/licenses/>.
++#
++#   As a special exception, the respective Autoconf Macro's copyright owner
++#   gives unlimited permission to copy, distribute and modify the configure
++#   scripts that are the output of Autoconf when processing the Macro. You
++#   need not follow the terms of the GNU General Public License when using
++#   or distributing such scripts, even though portions of the text of the
++#   Macro appear in them. The GNU General Public License (GPL) does govern
++#   all other use of the material that constitutes the Autoconf Macro.
++#
++#   This special exception to the GPL applies to versions of the Autoconf
++#   Macro released by the Autoconf Archive. When you make and distribute a
++#   modified version of the Autoconf Macro, you may extend this special
++#   exception to the GPL to apply to your modified version as well.
++
++#serial 23
++
++AU_ALIAS([ACX_PTHREAD], [AX_PTHREAD])
++AC_DEFUN([AX_PTHREAD], [
++AC_REQUIRE([AC_CANONICAL_HOST])
++AC_REQUIRE([AC_PROG_CC])
++AC_REQUIRE([AC_PROG_SED])
++AC_LANG_PUSH([C])
++ax_pthread_ok=no
++
++# We used to check for pthread.h first, but this fails if pthread.h
++# requires special compiler flags (e.g. on Tru64 or Sequent).
++# It gets checked for in the link test anyway.
++
++# First of all, check if the user has set any of the PTHREAD_LIBS,
++# etcetera environment variables, and if threads linking works using
++# them:
++if test "x$PTHREAD_CFLAGS$PTHREAD_LIBS" != "x"; then
++        ax_pthread_save_CC="$CC"
++        ax_pthread_save_CFLAGS="$CFLAGS"
++        ax_pthread_save_LIBS="$LIBS"
++        AS_IF([test "x$PTHREAD_CC" != "x"], [CC="$PTHREAD_CC"])
++        CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
++        LIBS="$PTHREAD_LIBS $LIBS"
++        AC_MSG_CHECKING([for pthread_join using $CC $PTHREAD_CFLAGS $PTHREAD_LIBS])
++        AC_LINK_IFELSE([AC_LANG_CALL([], [pthread_join])], [ax_pthread_ok=yes])
++        AC_MSG_RESULT([$ax_pthread_ok])
++        if test "x$ax_pthread_ok" = "xno"; then
++                PTHREAD_LIBS=""
++                PTHREAD_CFLAGS=""
++        fi
++        CC="$ax_pthread_save_CC"
++        CFLAGS="$ax_pthread_save_CFLAGS"
++        LIBS="$ax_pthread_save_LIBS"
++fi
++
++# We must check for the threads library under a number of different
++# names; the ordering is very important because some systems
++# (e.g. DEC) have both -lpthread and -lpthreads, where one of the
++# libraries is broken (non-POSIX).
++
++# Create a list of thread flags to try.  Items starting with a "-" are
++# C compiler flags, and other items are library names, except for "none"
++# which indicates that we try without any flags at all, and "pthread-config"
++# which is a program returning the flags for the Pth emulation library.
++
++ax_pthread_flags="pthreads none -Kthread -pthread -pthreads -mthreads pthread --thread-safe -mt pthread-config"
++
++# The ordering *is* (sometimes) important.  Some notes on the
++# individual items follow:
++
++# pthreads: AIX (must check this before -lpthread)
++# none: in case threads are in libc; should be tried before -Kthread and
++#       other compiler flags to prevent continual compiler warnings
++# -Kthread: Sequent (threads in libc, but -Kthread needed for pthread.h)
++# -pthread: Linux/gcc (kernel threads), BSD/gcc (userland threads), Tru64
++#           (Note: HP C rejects this with "bad form for `-t' option")
++# -pthreads: Solaris/gcc (Note: HP C also rejects)
++# -mt: Sun Workshop C (may only link SunOS threads [-lthread], but it
++#      doesn't hurt to check since this sometimes defines pthreads and
++#      -D_REENTRANT too), HP C (must be checked before -lpthread, which
++#      is present but should not be used directly; and before -mthreads,
++#      because the compiler interprets this as "-mt" + "-hreads")
++# -mthreads: Mingw32/gcc, Lynx/gcc
++# pthread: Linux, etcetera
++# --thread-safe: KAI C++
++# pthread-config: use pthread-config program (for GNU Pth library)
++
++case $host_os in
++
++        freebsd*)
++
++        # -kthread: FreeBSD kernel threads (preferred to -pthread since SMP-able)
++        # lthread: LinuxThreads port on FreeBSD (also preferred to -pthread)
++
++        ax_pthread_flags="-kthread lthread $ax_pthread_flags"
++        ;;
++
++        hpux*)
++
++        # From the cc(1) man page: "[-mt] Sets various -D flags to enable
++        # multi-threading and also sets -lpthread."
++
++        ax_pthread_flags="-mt -pthread pthread $ax_pthread_flags"
++        ;;
++
++        openedition*)
++
++        # IBM z/OS requires a feature-test macro to be defined in order to
++        # enable POSIX threads at all, so give the user a hint if this is
++        # not set. (We don't define these ourselves, as they can affect
++        # other portions of the system API in unpredictable ways.)
++
++        AC_EGREP_CPP([AX_PTHREAD_ZOS_MISSING],
++            [
++#            if !defined(_OPEN_THREADS) && !defined(_UNIX03_THREADS)
++             AX_PTHREAD_ZOS_MISSING
++#            endif
++            ],
++            [AC_MSG_WARN([IBM z/OS requires -D_OPEN_THREADS or -D_UNIX03_THREADS to enable pthreads support.])])
++        ;;
++
++        solaris*)
++
++        # On Solaris (at least, for some versions), libc contains stubbed
++        # (non-functional) versions of the pthreads routines, so link-based
++        # tests will erroneously succeed. (N.B.: The stubs are missing
++        # pthread_cleanup_push, or rather a function called by this macro,
++        # so we could check for that, but who knows whether they'll stub
++        # that too in a future libc.)  So we'll check first for the
++        # standard Solaris way of linking pthreads (-mt -lpthread).
++
++        ax_pthread_flags="-mt,pthread pthread $ax_pthread_flags"
++        ;;
++esac
++
++# GCC generally uses -pthread, or -pthreads on some platforms (e.g. SPARC)
++
++AS_IF([test "x$GCC" = "xyes"],
++      [ax_pthread_flags="-pthread -pthreads $ax_pthread_flags"])
++
++# The presence of a feature test macro requesting re-entrant function
++# definitions is, on some systems, a strong hint that pthreads support is
++# correctly enabled
++
++case $host_os in
++        darwin* | hpux* | linux* | osf* | solaris*)
++        ax_pthread_check_macro="_REENTRANT"
++        ;;
++
++        aix*)
++        ax_pthread_check_macro="_THREAD_SAFE"
++        ;;
++
++        *)
++        ax_pthread_check_macro="--"
++        ;;
++esac
++AS_IF([test "x$ax_pthread_check_macro" = "x--"],
++      [ax_pthread_check_cond=0],
++      [ax_pthread_check_cond="!defined($ax_pthread_check_macro)"])
++
++# Are we compiling with Clang?
++
++AC_CACHE_CHECK([whether $CC is Clang],
++    [ax_cv_PTHREAD_CLANG],
++    [ax_cv_PTHREAD_CLANG=no
++     # Note that Autoconf sets GCC=yes for Clang as well as GCC
++     if test "x$GCC" = "xyes"; then
++        AC_EGREP_CPP([AX_PTHREAD_CC_IS_CLANG],
++            [/* Note: Clang 2.7 lacks __clang_[a-z]+__ */
++#            if defined(__clang__) && defined(__llvm__)
++             AX_PTHREAD_CC_IS_CLANG
++#            endif
++            ],
++            [ax_cv_PTHREAD_CLANG=yes])
++     fi
++    ])
++ax_pthread_clang="$ax_cv_PTHREAD_CLANG"
++
++ax_pthread_clang_warning=no
++
++# Clang needs special handling, because older versions handle the -pthread
++# option in a rather... idiosyncratic way
++
++if test "x$ax_pthread_clang" = "xyes"; then
++
++        # Clang takes -pthread; it has never supported any other flag
++
++        # (Note 1: This will need to be revisited if a system that Clang
++        # supports has POSIX threads in a separate library.  This tends not
++        # to be the way of modern systems, but it's conceivable.)
++
++        # (Note 2: On some systems, notably Darwin, -pthread is not needed
++        # to get POSIX threads support; the API is always present and
++        # active.  We could reasonably leave PTHREAD_CFLAGS empty.  But
++        # -pthread does define _REENTRANT, and while the Darwin headers
++        # ignore this macro, third-party headers might not.)
++
++        PTHREAD_CFLAGS="-pthread"
++        PTHREAD_LIBS=
++
++        ax_pthread_ok=yes
++
++        # However, older versions of Clang make a point of warning the user
++        # that, in an invocation where only linking and no compilation is
++        # taking place, the -pthread option has no effect ("argument unused
++        # during compilation").  They expect -pthread to be passed in only
++        # when source code is being compiled.
++        #
++        # Problem is, this is at odds with the way Automake and most other
++        # C build frameworks function, which is that the same flags used in
++        # compilation (CFLAGS) are also used in linking.  Many systems
++        # supported by AX_PTHREAD require exactly this for POSIX threads
++        # support, and in fact it is often not straightforward to specify a
++        # flag that is used only in the compilation phase and not in
++        # linking.  Such a scenario is extremely rare in practice.
++        #
++        # Even though use of the -pthread flag in linking would only print
++        # a warning, this can be a nuisance for well-run software projects
++        # that build with -Werror.  So if the active version of Clang has
++        # this misfeature, we search for an option to squash it.
++
++        AC_CACHE_CHECK([whether Clang needs flag to prevent "argument unused" warning when linking with -pthread],
++            [ax_cv_PTHREAD_CLANG_NO_WARN_FLAG],
++            [ax_cv_PTHREAD_CLANG_NO_WARN_FLAG=unknown
++             # Create an alternate version of $ac_link that compiles and
++             # links in two steps (.c -> .o, .o -> exe) instead of one
++             # (.c -> exe), because the warning occurs only in the second
++             # step
++             ax_pthread_save_ac_link="$ac_link"
++             ax_pthread_sed='s/conftest\.\$ac_ext/conftest.$ac_objext/g'
++             ax_pthread_link_step=`$as_echo "$ac_link" | sed "$ax_pthread_sed"`
++             ax_pthread_2step_ac_link="($ac_compile) && (echo ==== >&5) && ($ax_pthread_link_step)"
++             ax_pthread_save_CFLAGS="$CFLAGS"
++             for ax_pthread_try in '' -Qunused-arguments -Wno-unused-command-line-argument unknown; do
++                AS_IF([test "x$ax_pthread_try" = "xunknown"], [break])
++                CFLAGS="-Werror -Wunknown-warning-option $ax_pthread_try -pthread $ax_pthread_save_CFLAGS"
++                ac_link="$ax_pthread_save_ac_link"
++                AC_LINK_IFELSE([AC_LANG_SOURCE([[int main(void){return 0;}]])],
++                    [ac_link="$ax_pthread_2step_ac_link"
++                     AC_LINK_IFELSE([AC_LANG_SOURCE([[int main(void){return 0;}]])],
++                         [break])
++                    ])
++             done
++             ac_link="$ax_pthread_save_ac_link"
++             CFLAGS="$ax_pthread_save_CFLAGS"
++             AS_IF([test "x$ax_pthread_try" = "x"], [ax_pthread_try=no])
++             ax_cv_PTHREAD_CLANG_NO_WARN_FLAG="$ax_pthread_try"
++            ])
++
++        case "$ax_cv_PTHREAD_CLANG_NO_WARN_FLAG" in
++                no | unknown) ;;
++                *) PTHREAD_CFLAGS="$ax_cv_PTHREAD_CLANG_NO_WARN_FLAG $PTHREAD_CFLAGS" ;;
++        esac
++
++fi # $ax_pthread_clang = yes
++
++if test "x$ax_pthread_ok" = "xno"; then
++for ax_pthread_try_flag in $ax_pthread_flags; do
++
++        case $ax_pthread_try_flag in
++                none)
++                AC_MSG_CHECKING([whether pthreads work without any flags])
++                ;;
++
++                -mt,pthread)
++                AC_MSG_CHECKING([whether pthreads work with -mt -lpthread])
++                PTHREAD_CFLAGS="-mt"
++                PTHREAD_LIBS="-lpthread"
++                ;;
++
++                -*)
++                AC_MSG_CHECKING([whether pthreads work with $ax_pthread_try_flag])
++                PTHREAD_CFLAGS="$ax_pthread_try_flag"
++                ;;
++
++                pthread-config)
++                AC_CHECK_PROG([ax_pthread_config], [pthread-config], [yes], [no])
++                AS_IF([test "x$ax_pthread_config" = "xno"], [continue])
++                PTHREAD_CFLAGS="`pthread-config --cflags`"
++                PTHREAD_LIBS="`pthread-config --ldflags` `pthread-config --libs`"
++                ;;
++
++                *)
++                AC_MSG_CHECKING([for the pthreads library -l$ax_pthread_try_flag])
++                PTHREAD_LIBS="-l$ax_pthread_try_flag"
++                ;;
++        esac
++
++        ax_pthread_save_CFLAGS="$CFLAGS"
++        ax_pthread_save_LIBS="$LIBS"
++        CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
++        LIBS="$PTHREAD_LIBS $LIBS"
++
++        # Check for various functions.  We must include pthread.h,
++        # since some functions may be macros.  (On the Sequent, we
++        # need a special flag -Kthread to make this header compile.)
++        # We check for pthread_join because it is in -lpthread on IRIX
++        # while pthread_create is in libc.  We check for pthread_attr_init
++        # due to DEC craziness with -lpthreads.  We check for
++        # pthread_cleanup_push because it is one of the few pthread
++        # functions on Solaris that doesn't have a non-functional libc stub.
++        # We try pthread_create on general principles.
++
++        AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <pthread.h>
++#                       if $ax_pthread_check_cond
++#                        error "$ax_pthread_check_macro must be defined"
++#                       endif
++                        static void routine(void *a) { a = 0; }
++                        static void *start_routine(void *a) { return a; }],
++                       [pthread_t th; pthread_attr_t attr;
++                        pthread_create(&th, 0, start_routine, 0);
++                        pthread_join(th, 0);
++                        pthread_attr_init(&attr);
++                        pthread_cleanup_push(routine, 0);
++                        pthread_cleanup_pop(0) /* ; */])],
++            [ax_pthread_ok=yes],
++            [])
++
++        CFLAGS="$ax_pthread_save_CFLAGS"
++        LIBS="$ax_pthread_save_LIBS"
++
++        AC_MSG_RESULT([$ax_pthread_ok])
++        AS_IF([test "x$ax_pthread_ok" = "xyes"], [break])
++
++        PTHREAD_LIBS=""
++        PTHREAD_CFLAGS=""
++done
++fi
++
++# Various other checks:
++if test "x$ax_pthread_ok" = "xyes"; then
++        ax_pthread_save_CFLAGS="$CFLAGS"
++        ax_pthread_save_LIBS="$LIBS"
++        CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
++        LIBS="$PTHREAD_LIBS $LIBS"
++
++        # Detect AIX lossage: JOINABLE attribute is called UNDETACHED.
++        AC_CACHE_CHECK([for joinable pthread attribute],
++            [ax_cv_PTHREAD_JOINABLE_ATTR],
++            [ax_cv_PTHREAD_JOINABLE_ATTR=unknown
++             for ax_pthread_attr in PTHREAD_CREATE_JOINABLE PTHREAD_CREATE_UNDETACHED; do
++                 AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <pthread.h>],
++                                                 [int attr = $ax_pthread_attr; return attr /* ; */])],
++                                [ax_cv_PTHREAD_JOINABLE_ATTR=$ax_pthread_attr; break],
++                                [])
++             done
++            ])
++        AS_IF([test "x$ax_cv_PTHREAD_JOINABLE_ATTR" != "xunknown" && \
++               test "x$ax_cv_PTHREAD_JOINABLE_ATTR" != "xPTHREAD_CREATE_JOINABLE" && \
++               test "x$ax_pthread_joinable_attr_defined" != "xyes"],
++              [AC_DEFINE_UNQUOTED([PTHREAD_CREATE_JOINABLE],
++                                  [$ax_cv_PTHREAD_JOINABLE_ATTR],
++                                  [Define to necessary symbol if this constant
++                                   uses a non-standard name on your system.])
++               ax_pthread_joinable_attr_defined=yes
++              ])
++
++        AC_CACHE_CHECK([whether more special flags are required for pthreads],
++            [ax_cv_PTHREAD_SPECIAL_FLAGS],
++            [ax_cv_PTHREAD_SPECIAL_FLAGS=no
++             case $host_os in
++             solaris*)
++             ax_cv_PTHREAD_SPECIAL_FLAGS="-D_POSIX_PTHREAD_SEMANTICS"
++             ;;
++             esac
++            ])
++        AS_IF([test "x$ax_cv_PTHREAD_SPECIAL_FLAGS" != "xno" && \
++               test "x$ax_pthread_special_flags_added" != "xyes"],
++              [PTHREAD_CFLAGS="$ax_cv_PTHREAD_SPECIAL_FLAGS $PTHREAD_CFLAGS"
++               ax_pthread_special_flags_added=yes])
++
++        AC_CACHE_CHECK([for PTHREAD_PRIO_INHERIT],
++            [ax_cv_PTHREAD_PRIO_INHERIT],
++            [AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]],
++                                             [[int i = PTHREAD_PRIO_INHERIT;]])],
++                            [ax_cv_PTHREAD_PRIO_INHERIT=yes],
++                            [ax_cv_PTHREAD_PRIO_INHERIT=no])
++            ])
++        AS_IF([test "x$ax_cv_PTHREAD_PRIO_INHERIT" = "xyes" && \
++               test "x$ax_pthread_prio_inherit_defined" != "xyes"],
++              [AC_DEFINE([HAVE_PTHREAD_PRIO_INHERIT], [1], [Have PTHREAD_PRIO_INHERIT.])
++               ax_pthread_prio_inherit_defined=yes
++              ])
++
++        CFLAGS="$ax_pthread_save_CFLAGS"
++        LIBS="$ax_pthread_save_LIBS"
++
++        # More AIX lossage: compile with *_r variant
++        if test "x$GCC" != "xyes"; then
++            case $host_os in
++                aix*)
++                AS_CASE(["x/$CC"],
++                    [x*/c89|x*/c89_128|x*/c99|x*/c99_128|x*/cc|x*/cc128|x*/xlc|x*/xlc_v6|x*/xlc128|x*/xlc128_v6],
++                    [#handle absolute path differently from PATH based program lookup
++                     AS_CASE(["x$CC"],
++                         [x/*],
++                         [AS_IF([AS_EXECUTABLE_P([${CC}_r])],[PTHREAD_CC="${CC}_r"])],
++                         [AC_CHECK_PROGS([PTHREAD_CC],[${CC}_r],[$CC])])])
++                ;;
++            esac
++        fi
++fi
++
++test -n "$PTHREAD_CC" || PTHREAD_CC="$CC"
++
++AC_SUBST([PTHREAD_LIBS])
++AC_SUBST([PTHREAD_CFLAGS])
++AC_SUBST([PTHREAD_CC])
++
++# Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
++if test "x$ax_pthread_ok" = "xyes"; then
++        ifelse([$1],,[AC_DEFINE([HAVE_PTHREAD],[1],[Define if you have POSIX threads libraries and header files.])],[$1])
++        :
++else
++        ax_pthread_ok=no
++        $2
++fi
++AC_LANG_POP
++])dnl AX_PTHREAD
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 5ced544..efd95eb 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -1,7 +1,7 @@
+ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)
+ 
+-AM_CFLAGS = $(GLOBAL_CFLAGS) $(libusbmuxd_CFLAGS) $(libgnutls_CFLAGS) $(libtasn1_CFLAGS) $(libplist_CFLAGS) $(LFS_CFLAGS) $(openssl_CFLAGS)
+-AM_LDFLAGS = $(libgnutls_LIBS) $(libtasn1_LIBS) $(libplist_LIBS) $(libusbmuxd_LIBS) $(libgcrypt_LIBS) $(libpthread_LIBS) $(openssl_LIBS)
++AM_CFLAGS = $(GLOBAL_CFLAGS) $(libusbmuxd_CFLAGS) $(libgnutls_CFLAGS) $(libtasn1_CFLAGS) $(libplist_CFLAGS) $(LFS_CFLAGS) $(openssl_CFLAGS) $(PTHREAD_CFLAGS)
++AM_LDFLAGS = $(libgnutls_LIBS) $(libtasn1_LIBS) $(libplist_LIBS) $(libusbmuxd_LIBS) $(libgcrypt_LIBS) $(openssl_LIBS) $(PTHREAD_LIBS)
+ 
+ lib_LTLIBRARIES = libimobiledevice.la
+ libimobiledevice_la_LIBADD = $(top_builddir)/common/libinternalcommon.la
+-- 
+2.14.1
+
+
+From b78a42e0531d219e27f5c57350886bc7c14d4684 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Wed, 4 Jan 2017 20:28:59 +0100
+Subject: [PATCH 50/65] ideviceprovision: Silence compiler warning (missing
+ parenthesis)
+
+---
+ tools/ideviceprovision.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/ideviceprovision.c b/tools/ideviceprovision.c
+index db00702..0bef7e8 100644
+--- a/tools/ideviceprovision.c
++++ b/tools/ideviceprovision.c
+@@ -156,7 +156,7 @@ static plist_t profile_get_embedded_plist(plist_t profile)
+ 	size_t slen = asn1_item_get_size(pp);
+ 	char bsize = *(pp+1);
+ 	if (bsize & 0x80) {
+-		slen += 2 + bsize & 0xF;
++		slen += 2 + (bsize & 0xF);
+ 	} else {
+ 		slen += 3;
+ 	}
+-- 
+2.14.1
+
+
+From 45fda819e1aae3cacf25a04b9fe22cd6ddc61f5a Mon Sep 17 00:00:00 2001
+From: Antoine Reversat <antoiner@fb.com>
+Date: Tue, 10 Jan 2017 09:55:15 -0800
+Subject: [PATCH 51/65] property_list_service: Remove packet length check when
+ receiving plist data
+
+There are services that would send really large plist data, e.g. when listing
+provisioning profiles. Instead of forcing the data to be less than 16MB we
+try to allocate a buffer as large as requested. If the allocation fails the
+function returns with an error.
+---
+ src/property_list_service.c | 89 ++++++++++++++++++++++-----------------------
+ 1 file changed, 43 insertions(+), 46 deletions(-)
+
+diff --git a/src/property_list_service.c b/src/property_list_service.c
+index 141fab7..a5bdf9b 100644
+--- a/src/property_list_service.c
++++ b/src/property_list_service.c
+@@ -193,59 +193,56 @@ static property_list_service_error_t internal_plist_receive_timeout(property_lis
+ 		debug_info("initial read failed!");
+ 		return PROPERTY_LIST_SERVICE_E_MUX_ERROR;
+ 	} else {
++		uint32_t curlen = 0;
++		char *content = NULL;
++
+ 		pktlen = be32toh(pktlen);
+-		if (pktlen < (1 << 24)) { /* prevent huge buffers */
+-			uint32_t curlen = 0;
+-			char *content = NULL;
+-			debug_info("%d bytes following", pktlen);
+-			content = (char*)malloc(pktlen);
+-			if (!content) {
+-				debug_info("out of memory when allocating %d bytes", pktlen);
+-				return PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR;
+-			}
++		debug_info("%d bytes following", pktlen);
++		content = (char*)malloc(pktlen);
++		if (!content) {
++			debug_info("out of memory when allocating %d bytes", pktlen);
++			return PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR;
++		}
+ 
+-			while (curlen < pktlen) {
+-				service_receive(client->parent, content+curlen, pktlen-curlen, &bytes);
+-				if (bytes <= 0) {
+-					res = PROPERTY_LIST_SERVICE_E_MUX_ERROR;
+-					break;
+-				}
+-				debug_info("received %d bytes", bytes);
+-				curlen += bytes;
+-			}
+-			if (curlen < pktlen) {
+-				debug_info("received incomplete packet (%d of %d bytes)", curlen, pktlen);
+-				if (curlen > 0) {
+-					debug_info("incomplete packet following:");
+-					debug_buffer(content, curlen);
+-				}
+-				free(content);
+-				return res;
++		while (curlen < pktlen) {
++			service_receive(client->parent, content+curlen, pktlen-curlen, &bytes);
++			if (bytes <= 0) {
++				res = PROPERTY_LIST_SERVICE_E_MUX_ERROR;
++				break;
+ 			}
+-			if ((pktlen > 8) && !memcmp(content, "bplist00", 8)) {
+-				plist_from_bin(content, pktlen, plist);
+-			} else if ((pktlen > 5) && !memcmp(content, "<?xml", 5)) {
+-				/* iOS 4.3+ hack: plist data might contain invalid characters, thus we convert those to spaces */
+-				for (bytes = 0; bytes < pktlen-1; bytes++) {
+-					if ((content[bytes] >= 0) && (content[bytes] < 0x20) && (content[bytes] != 0x09) && (content[bytes] != 0x0a) && (content[bytes] != 0x0d))
+-						content[bytes] = 0x20;
+-				}
+-				plist_from_xml(content, pktlen, plist);
+-			} else {
+-				debug_info("WARNING: received unexpected non-plist content");
+-				debug_buffer(content, pktlen);
+-			}
+-			if (*plist) {
+-				debug_plist(*plist);
+-				res = PROPERTY_LIST_SERVICE_E_SUCCESS;
+-			} else {
+-				res = PROPERTY_LIST_SERVICE_E_PLIST_ERROR;
++			debug_info("received %d bytes", bytes);
++			curlen += bytes;
++		}
++		if (curlen < pktlen) {
++			debug_info("received incomplete packet (%d of %d bytes)", curlen, pktlen);
++			if (curlen > 0) {
++				debug_info("incomplete packet following:");
++				debug_buffer(content, curlen);
+ 			}
+ 			free(content);
+-			content = NULL;
++			return res;
++		}
++		if ((pktlen > 8) && !memcmp(content, "bplist00", 8)) {
++			plist_from_bin(content, pktlen, plist);
++		} else if ((pktlen > 5) && !memcmp(content, "<?xml", 5)) {
++			/* iOS 4.3+ hack: plist data might contain invalid characters, thus we convert those to spaces */
++			for (bytes = 0; bytes < pktlen-1; bytes++) {
++				if ((content[bytes] >= 0) && (content[bytes] < 0x20) && (content[bytes] != 0x09) && (content[bytes] != 0x0a) && (content[bytes] != 0x0d))
++					content[bytes] = 0x20;
++			}
++			plist_from_xml(content, pktlen, plist);
++		} else {
++			debug_info("WARNING: received unexpected non-plist content");
++			debug_buffer(content, pktlen);
++		}
++		if (*plist) {
++			debug_plist(*plist);
++			res = PROPERTY_LIST_SERVICE_E_SUCCESS;
+ 		} else {
+-			res = PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR;
++			res = PROPERTY_LIST_SERVICE_E_PLIST_ERROR;
+ 		}
++		free(content);
++		content = NULL;
+ 	}
+ 	return res;
+ }
+-- 
+2.14.1
+
+
+From 5a8449a391d2cc848f55cfb4406bad4ded0bd138 Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Tue, 12 Jul 2016 23:01:47 +0200
+Subject: [PATCH 52/65] Propagate lower level errors to callers instead of
+ returning unknown error for most failures
+
+---
+ include/libimobiledevice/lockdown.h |  2 +-
+ src/idevice.c                       |  4 +-
+ src/lockdown.c                      | 76 +++++++++++++++++++------------------
+ src/property_list_service.c         |  4 +-
+ 4 files changed, 46 insertions(+), 40 deletions(-)
+
+diff --git a/include/libimobiledevice/lockdown.h b/include/libimobiledevice/lockdown.h
+index 0e48eef..b5c126c 100644
+--- a/include/libimobiledevice/lockdown.h
++++ b/include/libimobiledevice/lockdown.h
+@@ -43,7 +43,7 @@ typedef enum {
+ 	LOCKDOWN_E_PAIRING_FAILED                          =  -4,
+ 	LOCKDOWN_E_SSL_ERROR                               =  -5,
+ 	LOCKDOWN_E_DICT_ERROR                              =  -6,
+-	LOCKDOWN_E_NOT_ENOUGH_DATA                         =  -7,
++	LOCKDOWN_E_RECEIVE_TIMEOUT                         =  -7,
+ 	LOCKDOWN_E_MUX_ERROR                               =  -8,
+ 	LOCKDOWN_E_NO_RUNNING_SESSION                      =  -9,
+ 	/* native */
+diff --git a/src/idevice.c b/src/idevice.c
+index b6dfe4e..913038e 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -376,8 +376,8 @@ static idevice_error_t internal_connection_receive_timeout(idevice_connection_t
+ 	if (connection->type == CONNECTION_USBMUXD) {
+ 		int res = usbmuxd_recv_timeout((int)(long)connection->data, data, len, recv_bytes, timeout);
+ 		if (res < 0) {
+-			debug_info("ERROR: usbmuxd_recv_timeout returned %d (%s)", res, strerror(-res));
+-			return IDEVICE_E_UNKNOWN_ERROR;
++			debug_info("ERROR: usbmuxd_recv_timeout returned %d (%s)", res, strerror(errno));
++			return (res == -EAGAIN ? IDEVICE_E_NOT_ENOUGH_DATA : IDEVICE_E_UNKNOWN_ERROR);
+ 		}
+ 		return IDEVICE_E_SUCCESS;
+ 	} else {
+diff --git a/src/lockdown.c b/src/lockdown.c
+index cae950b..5251737 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -135,6 +135,36 @@ static lockdownd_error_t lockdownd_strtoerr(const char* name)
+ 	return err;
+ }
+ 
++/**
++ * Convert a property_list_service_error_t value to a lockdownd_error_t
++ * value. Used internally to get correct error codes.
++ *
++ * @param err A property_list_service_error_t error code
++ *
++ * @return A matching lockdownd_error_t error code,
++ *     LOCKDOWND_E_UNKNOWN_ERROR otherwise.
++ */
++static lockdownd_error_t lockdownd_error(property_list_service_error_t err)
++{
++	switch (err) {
++		case PROPERTY_LIST_SERVICE_E_SUCCESS:
++			return LOCKDOWN_E_SUCCESS;
++		case PROPERTY_LIST_SERVICE_E_INVALID_ARG:
++			return LOCKDOWN_E_INVALID_ARG;
++		case PROPERTY_LIST_SERVICE_E_PLIST_ERROR:
++			return LOCKDOWN_E_PLIST_ERROR;
++		case PROPERTY_LIST_SERVICE_E_MUX_ERROR:
++			return LOCKDOWN_E_MUX_ERROR;
++		case PROPERTY_LIST_SERVICE_E_SSL_ERROR:
++			return LOCKDOWN_E_SSL_ERROR;
++		case PROPERTY_LIST_SERVICE_E_RECEIVE_TIMEOUT:
++			return LOCKDOWN_E_RECEIVE_TIMEOUT;
++		default:
++			break;
++	}
++	return LOCKDOWN_E_UNKNOWN_ERROR;
++}
++
+ /**
+  * Internally used function for checking the result from lockdown's answer
+  * plist to a previously sent request.
+@@ -349,18 +379,8 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_receive(lockdownd_client_t clie
+ {
+ 	if (!client || !plist || (plist && *plist))
+ 		return LOCKDOWN_E_INVALID_ARG;
+-	lockdownd_error_t ret = LOCKDOWN_E_SUCCESS;
+-	property_list_service_error_t err;
+-
+-	err = property_list_service_receive_plist(client->parent, plist);
+-	if (err != PROPERTY_LIST_SERVICE_E_SUCCESS) {
+-		ret = LOCKDOWN_E_UNKNOWN_ERROR;
+-	}
+ 
+-	if (!*plist)
+-		ret = LOCKDOWN_E_PLIST_ERROR;
+-
+-	return ret;
++	return lockdownd_error(property_list_service_receive_plist(client->parent, plist));
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_send(lockdownd_client_t client, plist_t plist)
+@@ -368,14 +388,7 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_send(lockdownd_client_t client,
+ 	if (!client || !plist)
+ 		return LOCKDOWN_E_INVALID_ARG;
+ 
+-	lockdownd_error_t ret = LOCKDOWN_E_SUCCESS;
+-	property_list_service_error_t err;
+-
+-	err = property_list_service_send_xml_plist(client->parent, plist);
+-	if (err != PROPERTY_LIST_SERVICE_E_SUCCESS) {
+-		ret = LOCKDOWN_E_UNKNOWN_ERROR;
+-	}
+-	return ret;
++	return lockdownd_error(property_list_service_send_xml_plist(client->parent, plist));
+ }
+ 
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_query_type(lockdownd_client_t client, char **type)
+@@ -686,13 +699,11 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_client_new_with_handshake(idevi
+ 	}
+ 
+ 	/* perform handshake */
+-	if (LOCKDOWN_E_SUCCESS != lockdownd_query_type(client_loc, &type)) {
++	ret = lockdownd_query_type(client_loc, &type);
++	if (LOCKDOWN_E_SUCCESS != ret) {
+ 		debug_info("QueryType failed in the lockdownd client.");
+-		ret = LOCKDOWN_E_NOT_ENOUGH_DATA;
+-	} else {
+-		if (strcmp("com.apple.mobile.lockdown", type)) {
+-			debug_info("Warning QueryType request returned \"%s\".", type);
+-		}
++	} else if (strcmp("com.apple.mobile.lockdown", type)) {
++		debug_info("Warning QueryType request returned \"%s\".", type);
+ 	}
+ 	free(type);
+ 
+@@ -1113,7 +1124,6 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_goodbye(lockdownd_client_t clie
+ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_start_session(lockdownd_client_t client, const char *host_id, char **session_id, int *ssl_enabled)
+ {
+ 	lockdownd_error_t ret = LOCKDOWN_E_SUCCESS;
+-	property_list_service_error_t plret;
+ 	plist_t dict = NULL;
+ 
+ 	if (!client || !host_id)
+@@ -1184,20 +1194,14 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_start_session(lockdownd_client_
+ 			debug_info("Failed to get SessionID!");
+ 		}
+ 
+-		debug_info("Enable SSL Session: %s", (use_ssl?"true":"false"));
++		debug_info("Enable SSL Session: %s", (use_ssl ? "true" : "false"));
+ 
+ 		if (use_ssl) {
+-			plret = property_list_service_enable_ssl(client->parent);
+-			if (plret == PROPERTY_LIST_SERVICE_E_SUCCESS) {
+-				ret = LOCKDOWN_E_SUCCESS;
+-				client->ssl_enabled = 1;
+-			} else {
+-				ret = LOCKDOWN_E_SSL_ERROR;
+-				client->ssl_enabled = 0;
+-			}
++			ret = lockdownd_error(property_list_service_enable_ssl(client->parent));
++			client->ssl_enabled = (ret == LOCKDOWN_E_SUCCESS ? 1 : 0);
+ 		} else {
+-			client->ssl_enabled = 0;
+ 			ret = LOCKDOWN_E_SUCCESS;
++			client->ssl_enabled = 0;
+ 		}
+ 	}
+ 
+diff --git a/src/property_list_service.c b/src/property_list_service.c
+index a5bdf9b..f411699 100644
+--- a/src/property_list_service.c
++++ b/src/property_list_service.c
+@@ -98,7 +98,8 @@ LIBIMOBILEDEVICE_API property_list_service_error_t property_list_service_client_
+  * @return PROPERTY_LIST_SERVICE_E_SUCCESS on success,
+  *      PROPERTY_LIST_SERVICE_E_INVALID_ARG when one or more parameters are
+  *      invalid, PROPERTY_LIST_SERVICE_E_PLIST_ERROR when dict is not a valid
+- *      plist, or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when an unspecified
++ *      plist, PROPERTY_LIST_SERVICE_E_MUX_ERROR when a communication error
++ *      occurs, or PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR when an unspecified
+  *      error occurs.
+  */
+ static property_list_service_error_t internal_plist_send(property_list_service_client_t client, plist_t plist, int binary)
+@@ -140,6 +141,7 @@ static property_list_service_error_t internal_plist_send(property_list_service_c
+ 	}
+ 	if (bytes <= 0) {
+ 		debug_info("ERROR: sending to device failed.");
++		res = PROPERTY_LIST_SERVICE_E_MUX_ERROR;
+ 	}
+ 
+ 	free(content);
+-- 
+2.14.1
+
+
+From 4bdea2983a3204332b09408c62e440a0b8e23605 Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Tue, 7 Feb 2017 17:13:22 +0100
+Subject: [PATCH 53/65] Added IDEVICE_DEVICE_PAIRED event constant matching the
+ corresponding event number in libusbmuxd
+
+---
+ include/libimobiledevice/libimobiledevice.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/libimobiledevice/libimobiledevice.h b/include/libimobiledevice/libimobiledevice.h
+index b125adf..68eb511 100644
+--- a/include/libimobiledevice/libimobiledevice.h
++++ b/include/libimobiledevice/libimobiledevice.h
+@@ -55,7 +55,8 @@ typedef idevice_connection_private *idevice_connection_t; /**< The connection ha
+ /** The event type for device add or removal */
+ enum idevice_event_type {
+ 	IDEVICE_DEVICE_ADD = 1,
+-	IDEVICE_DEVICE_REMOVE
++	IDEVICE_DEVICE_REMOVE,
++	IDEVICE_DEVICE_PAIRED
+ };
+ 
+ /* event data structure */
+-- 
+2.14.1
+
+
+From f8999ef550fe9a97b24f4bbb17b66f186a5deae1 Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Tue, 7 Feb 2017 17:15:46 +0100
+Subject: [PATCH 54/65] Define htobe16 if not defined
+
+---
+ include/endianness.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/include/endianness.h b/include/endianness.h
+index 585e768..2d6ad0e 100644
+--- a/include/endianness.h
++++ b/include/endianness.h
+@@ -27,6 +27,10 @@
+ #endif
+ #endif
+ 
++#ifndef htobe16
++#define htobe16 be16toh
++#endif
++
+ #ifndef __bswap_32
+ #define __bswap_32(x) ((((x) & 0xFF000000) >> 24) \
+                     | (((x) & 0x00FF0000) >> 8) \
+-- 
+2.14.1
+
+
+From 1d844aae7820d10abf9a19b7acfb88341ac6e961 Mon Sep 17 00:00:00 2001
+From: BALATON Zoltan <balaton@eik.bme.hu>
+Date: Tue, 7 Feb 2017 17:17:03 +0100
+Subject: [PATCH 55/65] Fix parameter check of
+ instproxy_check_capabilities_match()
+
+The capabilities parameter is a string array not a plist. Also check
+other parameters when we are at it.
+---
+ src/installation_proxy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/installation_proxy.c b/src/installation_proxy.c
+index 9f367aa..f82eecc 100644
+--- a/src/installation_proxy.c
++++ b/src/installation_proxy.c
+@@ -772,7 +772,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_remove_archive(instproxy_client
+ 
+ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_check_capabilities_match(instproxy_client_t client, const char** capabilities, plist_t client_options, plist_t *result)
+ {
+-	if (!capabilities || (plist_get_node_type(capabilities) != PLIST_ARRAY && plist_get_node_type(capabilities) != PLIST_DICT))
++	if (!client || !capabilities || !result)
+ 		return INSTPROXY_E_INVALID_ARG;
+ 
+ 	plist_t lookup_result = NULL;
+-- 
+2.14.1
+
+
+From 02a0e03e24bc96bba2e5ea2438c30baf803fd137 Mon Sep 17 00:00:00 2001
+From: Christophe Fergeau <cfergeau@redhat.com>
+Date: Tue, 25 Apr 2017 14:09:48 +0200
+Subject: [PATCH 56/65] Avoid double free with OpenSSL 1.1.0
+
+Since commit OpenSSL_1_1_0-pre3~178
+https://github.com/openssl/openssl/commit/b184e3ef73200cb3b7914a603b43a5b8a074c85f
+OpenSSL automatically cleans up some of its internal data when the
+program exits. This conflicts with some similar clean up
+libimobiledevice attempts to do, which causes a double-free.
+SSL_COMP_free_compression_methods() was available in OpenSSL 1.0.2,
+and is still there in 1.1.0 as a no-op, so we can use that to free
+the compression methods.
+
+This bug can be hit with a simple idevicebackup2 --help
+
+==14299== Invalid read of size 4
+==14299==    at 0x547AEBC: OPENSSL_sk_pop_free (stack.c:263)
+==14299==    by 0x508B848: ssl_library_stop (ssl_init.c:182)
+==14299==    by 0x5424D11: OPENSSL_cleanup (init.c:402)
+==14299==    by 0x5DC3134: __cxa_finalize (cxa_finalize.c:56)
+==14299==    by 0x53332B2: ??? (in /usr/lib64/libcrypto.so.1.1.0e)
+==14299==    by 0x4011232: _dl_fini (dl-fini.c:235)
+==14299==    by 0x5DC2DC7: __run_exit_handlers (exit.c:83)
+==14299==    by 0x5DC2E19: exit (exit.c:105)
+==14299==    by 0x5DA8604: (below main) (libc-start.c:329)
+==14299==  Address 0x6585590 is 0 bytes inside a block of size 40 free'd
+==14299==    at 0x4C2FCC8: free (vg_replace_malloc.c:530)
+==14299==    by 0x4E43381: sk_SSL_COMP_free (ssl.h:830)
+==14299==    by 0x4E434E7: internal_idevice_deinit (idevice.c:103)
+==14299==    by 0x5B79643: __pthread_once_slow (pthread_once.c:116)
+==14299==    by 0x4E5663A: thread_once (thread.c:104)
+==14299==    by 0x4E43525: libimobiledevice_deinitialize (idevice.c:140)
+==14299==    by 0x4011232: _dl_fini (dl-fini.c:235)
+==14299==    by 0x5DC2DC7: __run_exit_handlers (exit.c:83)
+==14299==    by 0x5DC2E19: exit (exit.c:105)
+==14299==    by 0x5DA8604: (below main) (libc-start.c:329)
+==14299==  Block was alloc'd at
+==14299==    at 0x4C2EB1B: malloc (vg_replace_malloc.c:299)
+==14299==    by 0x5428908: CRYPTO_zalloc (mem.c:100)
+==14299==    by 0x547A9AE: OPENSSL_sk_new (stack.c:108)
+==14299==    by 0x5087D43: sk_SSL_COMP_new (ssl.h:830)
+==14299==    by 0x5087D43: do_load_builtin_compressions (ssl_ciph.c:482)
+==14299==    by 0x5087D43: do_load_builtin_compressions_ossl_ (ssl_ciph.c:476)
+==14299==    by 0x5B79643: __pthread_once_slow (pthread_once.c:116)
+==14299==    by 0x547B198: CRYPTO_THREAD_run_once (threads_pthread.c:106)
+==14299==    by 0x5089F96: load_builtin_compressions (ssl_ciph.c:500)
+==14299==    by 0x5089F96: SSL_COMP_get_compression_methods (ssl_ciph.c:1845)
+==14299==    by 0x508B68B: ossl_init_ssl_base (ssl_init.c:125)
+==14299==    by 0x508B68B: ossl_init_ssl_base_ossl_ (ssl_init.c:25)
+==14299==    by 0x5B79643: __pthread_once_slow (pthread_once.c:116)
+==14299==    by 0x547B198: CRYPTO_THREAD_run_once (threads_pthread.c:106)
+==14299==    by 0x508B90A: OPENSSL_init_ssl (ssl_init.c:227)
+==14299==    by 0x4E43416: internal_idevice_init (idevice.c:73)
+=
+
+Signed-off-by: Christophe Fergeau <cfergeau@redhat.com>
+---
+ src/idevice.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 913038e..d1f13cb 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -51,6 +51,14 @@
+ #include "common/debug.h"
+ 
+ #ifdef HAVE_OPENSSL
++
++#if OPENSSL_VERSION_NUMBER < 0x10002000L
++static void SSL_COMP_free_compression_methods(void)
++{
++	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
++}
++#endif
++
+ static mutex_t *mutex_buf = NULL;
+ static void locking_function(int mode, int n, const char* file, int line)
+ {
+@@ -100,7 +108,7 @@ static void internal_idevice_deinit(void)
+ 
+ 	EVP_cleanup();
+ 	CRYPTO_cleanup_all_ex_data();
+-	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
++	SSL_COMP_free_compression_methods();
+ #ifdef HAVE_ERR_REMOVE_THREAD_STATE
+ 	ERR_remove_thread_state(NULL);
+ #else
+-- 
+2.14.1
+
+
+From f635812ccc9b2eb63f5bc2b494d7fdae9c9e1ef3 Mon Sep 17 00:00:00 2001
+From: Christophe Fergeau <cfergeau@redhat.com>
+Date: Wed, 26 Apr 2017 11:36:54 +0200
+Subject: [PATCH 57/65] Don't use ERR_remove_thread_state() with OpenSSL 1.1.0
+
+It's deprecated and causes compile-time warnings. We don't want to
+fallback to ERR_remove_state() either as it's similarly deprecated.
+
+This commit adds a helper functions to hide the #ifdef mess between
+the various openssl versions.
+
+Signed-off-by: Christophe Fergeau <cfergeau@redhat.com>
+---
+ src/idevice.c | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index d1f13cb..1c43269 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -37,10 +37,7 @@
+ #ifdef HAVE_OPENSSL
+ #include <openssl/err.h>
+ #include <openssl/ssl.h>
+-#if OPENSSL_VERSION_NUMBER >= 0x10000001L
+-/* since OpenSSL 1.0.0-beta1 */
+-#define HAVE_ERR_REMOVE_THREAD_STATE 1
+-#endif
++
+ #else
+ #include <gnutls/gnutls.h>
+ #endif
+@@ -59,6 +56,19 @@ static void SSL_COMP_free_compression_methods(void)
+ }
+ #endif
+ 
++static void openssl_remove_thread_state(void)
++{
++/*  ERR_remove_thread_state() is available since OpenSSL 1.0.0-beta1, but
++ *  deprecated in OpenSSL 1.1.0 */
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000001L
++	ERR_remove_thread_state(NULL);
++#else
++	ERR_remove_state(0);
++#endif
++#endif
++}
++
+ static mutex_t *mutex_buf = NULL;
+ static void locking_function(int mode, int n, const char* file, int line)
+ {
+@@ -109,11 +119,7 @@ static void internal_idevice_deinit(void)
+ 	EVP_cleanup();
+ 	CRYPTO_cleanup_all_ex_data();
+ 	SSL_COMP_free_compression_methods();
+-#ifdef HAVE_ERR_REMOVE_THREAD_STATE
+-	ERR_remove_thread_state(NULL);
+-#else
+-	ERR_remove_state(0);
+-#endif
++	openssl_remove_thread_state();
+ #else
+ 	gnutls_global_deinit();
+ #endif
+@@ -764,11 +770,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 		debug_info("SSL mode enabled, cipher: %s", SSL_get_cipher(ssl));
+ 	}
+ 	/* required for proper multi-thread clean up to prevent leaks */
+-#ifdef HAVE_ERR_REMOVE_THREAD_STATE
+-	ERR_remove_thread_state(NULL);
+-#else
+-	ERR_remove_state(0);
+-#endif
++	openssl_remove_thread_state();
+ #else
+ 	ssl_data_t ssl_data_loc = (ssl_data_t)malloc(sizeof(struct ssl_data_private));
+ 
+-- 
+2.14.1
+
+
+From b89e4823ef9528936072f5f195d7fdab9e1f838b Mon Sep 17 00:00:00 2001
+From: Christophe Fergeau <cfergeau@redhat.com>
+Date: Tue, 25 Apr 2017 16:59:15 +0200
+Subject: [PATCH 58/65]  #ifdef out code which is a no-op with OpenSSL 1.1.0
+
+CRYPTO_set_id_callback
+CRYPTO_set_locking_callback
+EVP_cleanup
+CRYPTO_cleanup_all_ex_data
+SSL_COMP_free_compression_methods
+
+are all no-ops with OpenSSL 1.1.0, so we can #ifdef out the
+corresponding code. This cleans up some warnings about
+id_function/locking_function being defined but unused (as the calls to
+CRYPTO_set_id_callback and CRYPTO_set_locking_callback disappear at
+preprocessing time).
+
+Signed-off-by: Christophe Fergeau <cfergeau@redhat.com>
+---
+ src/idevice.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 1c43269..89724ff 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -69,6 +69,7 @@ static void openssl_remove_thread_state(void)
+ #endif
+ }
+ 
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
+ static mutex_t *mutex_buf = NULL;
+ static void locking_function(int mode, int n, const char* file, int line)
+ {
+@@ -83,10 +84,12 @@ static unsigned long id_function(void)
+ 	return ((unsigned long)THREAD_ID);
+ }
+ #endif
++#endif
+ 
+ static void internal_idevice_init(void)
+ {
+ #ifdef HAVE_OPENSSL
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
+ 	int i;
+ 	SSL_library_init();
+ 
+@@ -98,6 +101,7 @@ static void internal_idevice_init(void)
+ 
+ 	CRYPTO_set_id_callback(id_function);
+ 	CRYPTO_set_locking_callback(locking_function);
++#endif
+ #else
+ 	gnutls_global_init();
+ #endif
+@@ -106,6 +110,7 @@ static void internal_idevice_init(void)
+ static void internal_idevice_deinit(void)
+ {
+ #ifdef HAVE_OPENSSL
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
+ 	int i;
+ 	if (mutex_buf) {
+ 		CRYPTO_set_id_callback(NULL);
+@@ -120,6 +125,7 @@ static void internal_idevice_deinit(void)
+ 	CRYPTO_cleanup_all_ex_data();
+ 	SSL_COMP_free_compression_methods();
+ 	openssl_remove_thread_state();
++#endif
+ #else
+ 	gnutls_global_deinit();
+ #endif
+-- 
+2.14.1
+
+
+From a5b2266b4e9c2112f85f94aa1d45440007922e08 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Thu, 27 Apr 2017 14:32:49 +0200
+Subject: [PATCH 59/65] cython: Fix build error after error constant rename
+
+---
+ cython/lockdown.pxi | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/cython/lockdown.pxi b/cython/lockdown.pxi
+index c8d511e..f249049 100644
+--- a/cython/lockdown.pxi
++++ b/cython/lockdown.pxi
+@@ -7,7 +7,7 @@ cdef extern from "libimobiledevice/lockdown.h":
+         LOCKDOWN_E_PAIRING_FAILED
+         LOCKDOWN_E_SSL_ERROR
+         LOCKDOWN_E_DICT_ERROR
+-        LOCKDOWN_E_NOT_ENOUGH_DATA
++        LOCKDOWN_E_RECEIVE_TIMEOUT
+         LOCKDOWN_E_SET_VALUE_PROHIBITED
+         LOCKDOWN_E_GET_VALUE_PROHIBITED
+         LOCKDOWN_E_MUX_ERROR
+@@ -78,7 +78,7 @@ cdef class LockdownError(BaseError):
+             LOCKDOWN_E_PAIRING_FAILED: "Pairing failed",
+             LOCKDOWN_E_SSL_ERROR: "SSL error",
+             LOCKDOWN_E_DICT_ERROR: "Dictionary error",
+-            LOCKDOWN_E_NOT_ENOUGH_DATA: "Not enough data",
++            LOCKDOWN_E_RECEIVE_TIMEOUT: "Receive timeout",
+             LOCKDOWN_E_MUX_ERROR: "Mux Protocol Error",
+             LOCKDOWN_E_NO_RUNNING_SESSION: "No running session",
+             LOCKDOWN_E_INVALID_RESPONSE: "Invalid response",
+-- 
+2.14.1
+
+
+From 0cf6bb6f5bece0885c6e4806b5e62ec4296ab75e Mon Sep 17 00:00:00 2001
+From: Nikos Mavrogiannopoulos <nmav@redhat.com>
+Date: Mon, 2 Jan 2017 14:35:39 +0100
+Subject: [PATCH 60/65] gnutls: check for interrupted gnutls_handshake()
+
+That is, recover if gnutls_handshake() returns with non fatal
+error codes like GNUTLS_E_INTERRUPTED or GNUTLS_E_AGAIN.
+---
+ src/idevice.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 89724ff..21b10ba 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -697,7 +697,11 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 		return IDEVICE_E_INVALID_ARG;
+ 
+ 	idevice_error_t ret = IDEVICE_E_SSL_ERROR;
++#ifdef HAVE_OPENSSL
+ 	uint32_t return_me = 0;
++#else
++	int return_me = 0;
++#endif
+ 	plist_t pair_record = NULL;
+ 
+ 	userpref_read_pair_record(connection->udid, &pair_record);
+@@ -817,14 +821,17 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_connection_enable_ssl(idevice_conne
+ 	if (errno) {
+ 		debug_info("WARNING: errno says %s before handshake!", strerror(errno));
+ 	}
+-	return_me = gnutls_handshake(ssl_data_loc->session);
++
++	do {
++		return_me = gnutls_handshake(ssl_data_loc->session);
++	} while(return_me == GNUTLS_E_AGAIN || return_me == GNUTLS_E_INTERRUPTED);
++
+ 	debug_info("GnuTLS handshake done...");
+ 
+ 	if (return_me != GNUTLS_E_SUCCESS) {
+ 		internal_ssl_cleanup(ssl_data_loc);
+ 		free(ssl_data_loc);
+-		debug_info("GnuTLS reported something wrong.");
+-		gnutls_perror(return_me);
++		debug_info("GnuTLS reported something wrong: %s", gnutls_strerror(return_me));
+ 		debug_info("oh.. errno says %s", strerror(errno));
+ 	} else {
+ 		connection->ssl_data = ssl_data_loc;
+-- 
+2.14.1
+
+
+From 53fede06af98e24e26939127fcc71c6acfaf4c12 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Fri, 28 Apr 2017 20:58:53 +0200
+Subject: [PATCH 61/65] Updated README with some notes about configuration
+ options
+
+---
+ README | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/README b/README
+index 972cfa8..efc09c0 100644
+--- a/README
++++ b/README
+@@ -8,7 +8,7 @@ Requirements
+ ============
+ 
+ Development Packages of:
+-	libgnutls or openssl
++	OpenSSL or GnuTLS
+ 	libplist
+ 	libusbmuxd
+ 
+@@ -20,7 +20,7 @@ Software:
+ 	autoconf
+ 	libtool
+ 	pkg-config
+-	gcc
++	gcc or clang
+ 
+ Optional:
+ 	cython (Python bindings)
+@@ -34,6 +34,16 @@ To compile run:
+ 	make
+ 	sudo make install
+ 
++If you require a custom prefix or other option being passed to ./configure
++you can pass them directly to ./autogen.sh like this:
++        ./autogen.sh --prefix=/opt/local --enable-debug-code
++        make
++        sudo make install
++
++By default, OpenSSL will be used. If you prefer GnuTLS, configure with
++ --disable-openssl like this:
++	./autogen.sh --disable-openssl
++
+ Who/What/Where?
+ ===============
+ 
+@@ -47,7 +57,7 @@ Code (Mirror):
+ 	git clone https://github.com/libimobiledevice/libimobiledevice.git
+ 
+ Tickets:
+-	http://github.com/libimobiledevice/libimobiledevice/issues
++	https://github.com/libimobiledevice/libimobiledevice/issues
+ 
+ Mailing List:
+ 	http://lists.libimobiledevice.org/mailman/listinfo/libimobiledevice-devel
+@@ -66,4 +76,4 @@ libimobiledevice is an independent software library and has not been
+ authorized, sponsored, or otherwise approved by Apple Inc.
+ 
+ README Updated on:
+-	2015-01-28
++	2017-04-28
+-- 
+2.14.1
+
+
+From 835d84b678d23f92622445f5bf142c2bf52a7e9b Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 18 Jun 2017 04:10:57 +0200
+Subject: [PATCH 62/65] idevicescreenshot: Detect screenshot image format to
+ determine file extension
+
+---
+ tools/idevicescreenshot.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/tools/idevicescreenshot.c b/tools/idevicescreenshot.c
+index da229e2..74acdf6 100644
+--- a/tools/idevicescreenshot.c
++++ b/tools/idevicescreenshot.c
+@@ -99,12 +99,22 @@ int main(int argc, char **argv)
+ 		} else {
+ 			char *imgdata = NULL;
+ 			uint64_t imgsize = 0;
+-			if (!filename) {
+-				time_t now = time(NULL);
+-				filename = (char*)malloc(36);
+-				strftime(filename, 36, "screenshot-%Y-%m-%d-%H-%M-%S.tiff", gmtime(&now));
+-			}
+ 			if (screenshotr_take_screenshot(shotr, &imgdata, &imgsize) == SCREENSHOTR_E_SUCCESS) {
++				if (!filename) {
++					const char *fileext = NULL;
++					if (memcmp(imgdata, "\x89PNG", 4) == 0) {
++						fileext = ".png";
++					} else if (memcmp(imgdata, "MM\x00*", 4) == 0) {
++						fileext = ".tiff";
++					} else {
++						printf("WARNING: screenshot data has unexpected image format.\n");
++						fileext = ".dat";
++					}
++					time_t now = time(NULL);
++					filename = (char*)malloc(36);
++					size_t pos = strftime(filename, 36, "screenshot-%Y-%m-%d-%H-%M-%S", gmtime(&now));
++					sprintf(filename+pos, "%s", fileext);
++				}
+ 				FILE *f = fopen(filename, "wb");
+ 				if (f) {
+ 					if (fwrite(imgdata, 1, (size_t)imgsize, f) == (size_t)imgsize) {
+-- 
+2.14.1
+
+
+From 5250024b53b799a427a486ae133ecb927f5c555e Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sat, 2 Jul 2016 01:37:50 +0200
+Subject: [PATCH 63/65] Add basic mobileactivation service implementation
+
+---
+ include/Makefile.am                         |   1 +
+ include/libimobiledevice/mobileactivation.h | 144 +++++++++++++++++++
+ src/Makefile.am                             |   1 +
+ src/mobileactivation.c                      | 209 ++++++++++++++++++++++++++++
+ src/mobileactivation.h                      |  32 +++++
+ 5 files changed, 387 insertions(+)
+ create mode 100644 include/libimobiledevice/mobileactivation.h
+ create mode 100644 src/mobileactivation.c
+ create mode 100644 src/mobileactivation.h
+
+diff --git a/include/Makefile.am b/include/Makefile.am
+index 9f61e6b..f2b93ed 100644
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -20,5 +20,6 @@ nobase_include_HEADERS = libimobiledevice/libimobiledevice.h \
+ 			 libimobiledevice/diagnostics_relay.h\
+ 			 libimobiledevice/debugserver.h\
+ 			 libimobiledevice/syslog_relay.h\
++			 libimobiledevice/mobileactivation.h\
+ 			 libimobiledevice/property_list_service.h\
+ 			 libimobiledevice/service.h
+diff --git a/include/libimobiledevice/mobileactivation.h b/include/libimobiledevice/mobileactivation.h
+new file mode 100644
+index 0000000..bb977fe
+--- /dev/null
++++ b/include/libimobiledevice/mobileactivation.h
+@@ -0,0 +1,144 @@
++/**
++ * @file libimobiledevice/mobileactivation.h
++ * @brief Handle device activation and deactivation.
++ * \internal
++ *
++ * Copyright (c) 2016 Nikias Bassen, All Rights Reserved.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
++ */
++
++#ifndef IMOBILEACTIVATION_H
++#define IMOBILEACTIVATION_H
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <libimobiledevice/libimobiledevice.h>
++#include <libimobiledevice/lockdown.h>
++
++#define MOBILEACTIVATION_SERVICE_NAME "com.apple.mobileactivationd"
++
++/** Error Codes */
++typedef enum {
++	MOBILEACTIVATION_E_SUCCESS         =  0,
++	MOBILEACTIVATION_E_INVALID_ARG     = -1,
++	MOBILEACTIVATION_E_PLIST_ERROR     = -2,
++	MOBILEACTIVATION_E_MUX_ERROR       = -3,
++	MOBILEACTIVATION_E_UNKNOWN_REQUEST = -4,
++	MOBILEACTIVATION_E_REQUEST_FAILED  = -5,
++	MOBILEACTIVATION_E_UNKNOWN_ERROR   = -256
++} mobileactivation_error_t;
++
++typedef struct mobileactivation_client_private mobileactivation_client_private;
++typedef mobileactivation_client_private *mobileactivation_client_t; /**< The client handle. */
++
++/**
++ * Connects to the mobileactivation service on the specified device.
++ *
++ * @param device The device to connect to.
++ * @param service The service descriptor returned by lockdownd_start_service.
++ * @param client Reference that will point to a newly allocated
++ *     mobileactivation_client_t upon successful return.
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success,
++ *     MOBILEACTIVATION_E_INVALID_ARG when one of the parameters is invalid,
++ *     or MOBILEACTIVATION_E_MUX_ERROR when the connection failed.
++ */
++mobileactivation_error_t mobileactivation_client_new(idevice_t device, lockdownd_service_descriptor_t service, mobileactivation_client_t *client);
++
++/**
++ * Starts a new mobileactivation service on the specified device and connects to it.
++ *
++ * @param device The device to connect to.
++ * @param client Pointer that will point to a newly allocated
++ *     mobileactivation_client_t upon successful return. Must be freed using
++ *     mobileactivation_client_free() after use.
++ * @param label The label to use for communication. Usually the program name.
++ *  Pass NULL to disable sending the label in requests to lockdownd.
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_client_start_service(idevice_t device, mobileactivation_client_t* client, const char* label);
++
++/**
++ * Disconnects a mobileactivation client from the device and frees up the
++ * mobileactivation client data.
++ *
++ * @param client The mobileactivation client to disconnect and free.
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success,
++ *     MOBILEACTIVATION_E_INVALID_ARG when one of client or client->parent
++ *     is invalid, or MOBILEACTIVATION_E_UNKNOWN_ERROR when the was an
++ *     error freeing the parent property_list_service client.
++ */
++mobileactivation_error_t mobileactivation_client_free(mobileactivation_client_t client);
++
++
++/**
++ * Retrieves the device's activation state.
++ *
++ * @param client The mobileactivation client.
++ * @param state Pointer to a plist_t variable that will be set to the
++ *     activation state reported by the mobileactivation service. The
++ *     consumer is responsible for freeing the returned object using
++ *     plist_free().
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_get_activation_state(mobileactivation_client_t client, plist_t *state);
++
++/**
++ * Retrieves the activation info required for device activation.
++ *
++ * @param client The mobileactivation client
++ * @param info Pointer to a plist_t variable that will be set to the
++ *     activation info created by the mobileactivation service. The
++ *     consumer is responsible for freeing the returned object using
++ *     plist_free().
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_create_activation_info(mobileactivation_client_t client, plist_t *info);
++
++/**
++ * Activates the device with the given activation record.
++ * The activation record plist dictionary must be obtained using the
++ * activation protocol requesting from Apple's https webservice.
++ *
++ * @param client The mobileactivation client
++ * @param activation_record The activation record plist dictionary
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_activate(mobileactivation_client_t client, plist_t activation_record);
++
++/**
++ * Deactivates the device.
++ *
++ * @param client The mobileactivation client
++ */
++mobileactivation_error_t mobileactivation_deactivate(mobileactivation_client_t client);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/src/Makefile.am b/src/Makefile.am
+index efd95eb..fcde8ae 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -28,6 +28,7 @@ libimobiledevice_la_SOURCES = idevice.c idevice.h \
+ 		       heartbeat.c heartbeat.h\
+ 		       debugserver.c debugserver.h\
+ 		       webinspector.c webinspector.h\
++		       mobileactivation.c mobileactivation.h\
+ 		       syslog_relay.c syslog_relay.h
+ 
+ if WIN32
+diff --git a/src/mobileactivation.c b/src/mobileactivation.c
+new file mode 100644
+index 0000000..f14eb73
+--- /dev/null
++++ b/src/mobileactivation.c
+@@ -0,0 +1,209 @@
++/*
++ * mobileactivation.c
++ * com.apple.mobileactivationd service implementation.
++ *
++ * Copyright (c) 2016 Nikias Bassen, All Rights Reserved.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
++ */
++#include <string.h>
++#include <stdlib.h>
++#include "mobileactivation.h"
++#include "property_list_service.h"
++#include "common/debug.h"
++
++/**
++ * Convert a property_list_service_error_t value to a mobileactivation_error_t value.
++ * Used internally to get correct error codes.
++ *
++ * @param err An property_list_service_error_t error code
++ *
++ * @return A matching mobileactivation_error_t error code,
++ *     MOBILEACTIVATION_E_UNKNOWN_ERROR otherwise.
++ */
++static mobileactivation_error_t mobileactivation_error(property_list_service_error_t err)
++{
++	switch (err) {
++		case PROPERTY_LIST_SERVICE_E_SUCCESS:
++			return MOBILEACTIVATION_E_SUCCESS;
++		case PROPERTY_LIST_SERVICE_E_INVALID_ARG:
++			return MOBILEACTIVATION_E_INVALID_ARG;
++		case PROPERTY_LIST_SERVICE_E_PLIST_ERROR:
++			return MOBILEACTIVATION_E_PLIST_ERROR;
++		case PROPERTY_LIST_SERVICE_E_MUX_ERROR:
++			return MOBILEACTIVATION_E_MUX_ERROR;
++		default:
++			break;
++	}
++	return MOBILEACTIVATION_E_UNKNOWN_ERROR;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_client_new(idevice_t device, lockdownd_service_descriptor_t service, mobileactivation_client_t *client)
++{
++	if (!device || !service || service->port == 0 || !client || *client) {
++		return MOBILEACTIVATION_E_INVALID_ARG;
++	}
++
++	property_list_service_client_t plistclient = NULL;
++	if (property_list_service_client_new(device, service, &plistclient) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
++		return MOBILEACTIVATION_E_MUX_ERROR;
++	}
++
++	/* create client object */
++	mobileactivation_client_t client_loc = (mobileactivation_client_t) malloc(sizeof(struct mobileactivation_client_private));
++	client_loc->parent = plistclient;
++
++	/* all done, return success */
++	*client = client_loc;
++	return MOBILEACTIVATION_E_SUCCESS;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_client_start_service(idevice_t device, mobileactivation_client_t * client, const char* label)
++{
++	mobileactivation_error_t err = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++	service_client_factory_start_service(device, MOBILEACTIVATION_SERVICE_NAME, (void**)client, label, SERVICE_CONSTRUCTOR(mobileactivation_client_new), &err);
++	return err;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_client_free(mobileactivation_client_t client)
++{
++	if (!client)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	if (property_list_service_client_free(client->parent) != PROPERTY_LIST_SERVICE_E_SUCCESS) {
++		return MOBILEACTIVATION_E_UNKNOWN_ERROR;
++	}
++	free(client);
++	return MOBILEACTIVATION_E_SUCCESS;
++}
++
++static mobileactivation_error_t mobileactivation_check_result(plist_t dict, const char *command)
++{
++	mobileactivation_error_t ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++
++	if (!dict || plist_get_node_type(dict) != PLIST_DICT) {
++		return MOBILEACTIVATION_E_PLIST_ERROR;
++	}
++
++	plist_t err_node = plist_dict_get_item(dict, "Error");
++	if (!err_node) {
++		return MOBILEACTIVATION_E_SUCCESS;
++	} else {
++		char *errmsg = NULL;
++		plist_get_string_val(err_node, &errmsg);
++		debug_info("ERROR: %s: %s", command, errmsg);
++		free(errmsg);
++		ret = MOBILEACTIVATION_E_REQUEST_FAILED;
++	}
++	return ret;
++}
++
++static mobileactivation_error_t mobileactivation_send_command(mobileactivation_client_t client, const char* command, plist_t value, plist_t *result)
++{
++	if (!client || !command || !result)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	mobileactivation_error_t ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++	*result = NULL;
++
++	plist_t dict = plist_new_dict();
++	plist_dict_set_item(dict, "Command", plist_new_string(command));
++	if (value) {
++		plist_dict_set_item(dict, "Value", plist_copy(value));
++	}
++
++	ret = mobileactivation_error(property_list_service_send_binary_plist(client->parent, dict));
++	plist_free(dict);
++	dict = NULL;
++
++	ret = mobileactivation_error(property_list_service_receive_plist(client->parent, &dict));
++	if (!dict) {
++		debug_info("ERROR: Did not get reply for %s command", command);
++		return MOBILEACTIVATION_E_PLIST_ERROR;
++	}
++
++	*result = dict;
++	return mobileactivation_check_result(dict, command);
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_get_activation_state(mobileactivation_client_t client, plist_t *state)
++{
++	if (!client || !state)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "GetActivationStateRequest", NULL, &result);
++	if (ret == MOBILEACTIVATION_E_SUCCESS) {
++		plist_t node = plist_dict_get_item(result, "Value");
++		if (!node) {
++			debug_info("ERROR: GetActivationStateRequest command returned success but has no value in reply");
++			ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++		} else {
++			*state = plist_copy(node);
++		}
++	}
++	plist_free(result);
++	result = NULL;
++
++	return ret;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_create_activation_info(mobileactivation_client_t client, plist_t *info)
++{
++	if (!client || !info)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "CreateActivationInfoRequest", NULL, &result);
++	if (ret == MOBILEACTIVATION_E_SUCCESS) {
++		plist_t node = plist_dict_get_item(result, "Value");
++		if (!node) {
++			debug_info("ERROR: CreateActivationInfoRequest command returned success but has no value in reply");
++			ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++		} else {
++			*info = plist_copy(node);
++		}
++	}
++	plist_free(result);
++	result = NULL;
++
++	return ret;	
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_activate(mobileactivation_client_t client, plist_t activation_record)
++{
++	if (!client || !activation_record)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "HandleActivationInfoRequest", activation_record, &result);
++	plist_free(result);
++	result = NULL;
++
++	return ret;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_deactivate(mobileactivation_client_t client)
++{
++	if (!client)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "DeactivateRequest", NULL, &result);
++	plist_free(result);
++	result = NULL;
++
++	return ret;
++}
+diff --git a/src/mobileactivation.h b/src/mobileactivation.h
+new file mode 100644
+index 0000000..49b9ebc
+--- /dev/null
++++ b/src/mobileactivation.h
+@@ -0,0 +1,32 @@
++/*
++ * mobileactivation.h
++ * com.apple.mobileactivationd service header file.
++ *
++ * Copyright (c) 2016 Nikias Bassen, All Rights Reserved.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
++ */
++
++#ifndef __MOBILEACTIVATION_H
++#define __MOBILEACTIVATION_H
++
++#include "libimobiledevice/mobileactivation.h"
++#include "property_list_service.h"
++
++struct mobileactivation_client_private {
++	property_list_service_client_t parent;
++};
++
++#endif
+-- 
+2.14.1
+
+
+From 0dbe76b4e75eef5d0e033aac99409fb6df36c512 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Mon, 3 Jul 2017 03:09:35 +0200
+Subject: [PATCH 64/65] mobileactivation: Add new functions required for
+ drmHandshake / session mode device activation
+
+---
+ include/libimobiledevice/mobileactivation.h | 47 +++++++++++++++++-
+ src/mobileactivation.c                      | 75 ++++++++++++++++++++++++++++-
+ 2 files changed, 119 insertions(+), 3 deletions(-)
+
+diff --git a/include/libimobiledevice/mobileactivation.h b/include/libimobiledevice/mobileactivation.h
+index bb977fe..bb1f3f4 100644
+--- a/include/libimobiledevice/mobileactivation.h
++++ b/include/libimobiledevice/mobileactivation.h
+@@ -3,7 +3,7 @@
+  * @brief Handle device activation and deactivation.
+  * \internal
+  *
+- * Copyright (c) 2016 Nikias Bassen, All Rights Reserved.
++ * Copyright (c) 2016-2017 Nikias Bassen, All Rights Reserved.
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -103,6 +103,20 @@ mobileactivation_error_t mobileactivation_client_free(mobileactivation_client_t
+  */
+ mobileactivation_error_t mobileactivation_get_activation_state(mobileactivation_client_t client, plist_t *state);
+ 
++/**
++ * Retrieves a session blob required for 'drmHandshake' via albert.apple.com.
++ *
++ * @param client The mobileactivation client
++ * @param blob Pointer to a plist_t variable that will be set to the
++ *     session blob created by the mobielactivation service. The
++ *     consumer is responsible for freeing the returned object using
++ *     plist_free().
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_create_activation_session_info(mobileactivation_client_t client, plist_t *blob);
++
+ /**
+  * Retrieves the activation info required for device activation.
+  *
+@@ -117,6 +131,24 @@ mobileactivation_error_t mobileactivation_get_activation_state(mobileactivation_
+  */
+ mobileactivation_error_t mobileactivation_create_activation_info(mobileactivation_client_t client, plist_t *info);
+ 
++/**
++ * Retrieves the activation info required for device activation in 'session'
++ * mode. This function expects a handshake result retrieved from
++ * https://albert.apple.com/deviceservies/drmHandshake  with a blob
++ * provided by mobileactivation_create_activation_session_info().
++ *
++ * @param client The mobileactivation client
++ * @aram handshake_result The handshake result returned from drmHandshake
++ * @param info Pointer to a plist_t variable that will be set to the
++ *     activation info created by the mobileactivation service. The
++ *     consumer is responsible for freeing the returned object using
++ *     plist_free().
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_create_activation_info_with_session(mobileactivation_client_t client, plist_t handshake_result, plist_t *info);
++
+ /**
+  * Activates the device with the given activation record.
+  * The activation record plist dictionary must be obtained using the
+@@ -130,6 +162,19 @@ mobileactivation_error_t mobileactivation_create_activation_info(mobileactivatio
+  */
+ mobileactivation_error_t mobileactivation_activate(mobileactivation_client_t client, plist_t activation_record);
+ 
++/**
++ * Activates the device with the given activation record in 'session' mode.
++ * The activation record plist dictionary must be obtained using the
++ * activation protocol requesting from Apple's https webservice.
++ *
++ * @param client The mobileactivation client
++ * @param activation_record The activation record plist dictionary
++ *
++ * @return MOBILEACTIVATION_E_SUCCESS on success, or an MOBILEACTIVATION_E_*
++ *     error code otherwise.
++ */
++mobileactivation_error_t mobileactivation_activate_with_session(mobileactivation_client_t client, plist_t activation_record);
++
+ /**
+  * Deactivates the device.
+  *
+diff --git a/src/mobileactivation.c b/src/mobileactivation.c
+index f14eb73..7ae35bb 100644
+--- a/src/mobileactivation.c
++++ b/src/mobileactivation.c
+@@ -2,7 +2,7 @@
+  * mobileactivation.c
+  * com.apple.mobileactivationd service implementation.
+  *
+- * Copyright (c) 2016 Nikias Bassen, All Rights Reserved.
++ * Copyright (c) 2016-2017 Nikias Bassen, All Rights Reserved.
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -89,6 +89,17 @@ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_client_free(mobil
+ 	return MOBILEACTIVATION_E_SUCCESS;
+ }
+ 
++static plist_t plist_data_from_plist(plist_t plist)
++{
++	plist_t result = NULL;
++	char *xml = NULL;
++	uint32_t xml_len = 0;
++	plist_to_xml(plist, &xml, &xml_len);
++	result = plist_new_data(xml, xml_len);
++	free(xml);
++	return result;
++}
++
+ static mobileactivation_error_t mobileactivation_check_result(plist_t dict, const char *command)
+ {
+ 	mobileactivation_error_t ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
+@@ -104,8 +115,8 @@ static mobileactivation_error_t mobileactivation_check_result(plist_t dict, cons
+ 		char *errmsg = NULL;
+ 		plist_get_string_val(err_node, &errmsg);
+ 		debug_info("ERROR: %s: %s", command, errmsg);
+-		free(errmsg);
+ 		ret = MOBILEACTIVATION_E_REQUEST_FAILED;
++		free(errmsg);
+ 	}
+ 	return ret;
+ }
+@@ -160,6 +171,26 @@ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_get_activation_st
+ 	return ret;
+ }
+ 
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_create_activation_session_info(mobileactivation_client_t client, plist_t *blob)
++{
++	if (!client || !blob)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "CreateTunnel1SessionInfoRequest", NULL, &result);
++	if (ret == MOBILEACTIVATION_E_SUCCESS) {
++		plist_t node = plist_dict_get_item(result, "Value");
++		if (!node) {
++			debug_info("ERROR: CreateTunnel1SessionInfoRequest command returned success but has no value in reply");
++			ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++		} else {
++			*blob = plist_copy(node);
++		}
++	}
++
++	return ret;
++}
++
+ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_create_activation_info(mobileactivation_client_t client, plist_t *info)
+ {
+ 	if (!client || !info)
+@@ -179,6 +210,30 @@ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_create_activation
+ 	plist_free(result);
+ 	result = NULL;
+ 
++	return ret;
++}
++
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_create_activation_info_with_session(mobileactivation_client_t client, plist_t handshake_response, plist_t *info)
++{
++	if (!client || !info)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	plist_t data = plist_data_from_plist(handshake_response);
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "CreateTunnel1ActivationInfoRequest", data, &result);
++	plist_free(data);
++	if (ret == MOBILEACTIVATION_E_SUCCESS) {
++		plist_t node = plist_dict_get_item(result, "Value");
++		if (!node) {
++			debug_info("ERROR: CreateTunnel1ActivationInfoRequest command returned success but has no value in reply");
++			ret = MOBILEACTIVATION_E_UNKNOWN_ERROR;
++		} else {
++			*info = plist_copy(node);
++		}
++	}
++	plist_free(result);
++	result = NULL;
++
+ 	return ret;	
+ }
+ 
+@@ -195,6 +250,22 @@ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_activate(mobileac
+ 	return ret;
+ }
+ 
++LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_activate_with_session(mobileactivation_client_t client, plist_t activation_record)
++{
++	if (!client || !activation_record)
++		return MOBILEACTIVATION_E_INVALID_ARG;
++
++	plist_t result = NULL;
++	plist_t data = plist_data_from_plist(activation_record);
++	mobileactivation_error_t ret = mobileactivation_send_command(client, "HandleActivationInfoWithSessionRequest", data, &result);
++	plist_free(data);
++	plist_free(result);
++	result = NULL;
++
++	return ret;
++}
++
++
+ LIBIMOBILEDEVICE_API mobileactivation_error_t mobileactivation_deactivate(mobileactivation_client_t client)
+ {
+ 	if (!client)
+-- 
+2.14.1
+
+
+From 5a85432719fb3d18027d528f87d2a44b76fd3e12 Mon Sep 17 00:00:00 2001
+From: Nikias Bassen <nikias@gmx.li>
+Date: Sun, 13 Aug 2017 00:12:16 +0200
+Subject: [PATCH 65/65] lockdown: Don't explicitly validate pairing unless
+ we're dealing with an older device
+
+On newer iOS version, ValidatePair is not mandatory to gain trusted host
+status. Starting with iOS 11, the ValidatePair request has been removed from
+lockdownd and will throw an error. This commit adds a version check so that
+ValidatePair is only called on devices prior iOS 7.
+---
+ src/idevice.c  |  1 +
+ src/idevice.h  |  1 +
+ src/lockdown.c | 37 +++++++++++++++++++++++++------------
+ 3 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/src/idevice.c b/src/idevice.c
+index 21b10ba..ead9b86 100644
+--- a/src/idevice.c
++++ b/src/idevice.c
+@@ -256,6 +256,7 @@ LIBIMOBILEDEVICE_API idevice_error_t idevice_new(idevice_t * device, const char
+ 		dev->udid = strdup(muxdev.udid);
+ 		dev->conn_type = CONNECTION_USBMUXD;
+ 		dev->conn_data = (void*)(long)muxdev.handle;
++		dev->version = 0;
+ 		*device = dev;
+ 		return IDEVICE_E_SUCCESS;
+ 	}
+diff --git a/src/idevice.h b/src/idevice.h
+index 1354cc0..e46a7e5 100644
+--- a/src/idevice.h
++++ b/src/idevice.h
+@@ -76,6 +76,7 @@ struct idevice_private {
+ 	char *udid;
+ 	enum connection_type conn_type;
+ 	void *conn_data;
++	int version;
+ };
+ 
+ #endif
+diff --git a/src/lockdown.c b/src/lockdown.c
+index 5251737..071697d 100644
+--- a/src/lockdown.c
++++ b/src/lockdown.c
+@@ -707,6 +707,19 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_client_new_with_handshake(idevi
+ 	}
+ 	free(type);
+ 
++	if (device->version == 0) {
++		plist_t p_version = NULL;
++		if (lockdownd_get_value(client_loc, NULL, "ProductVersion", &p_version) == LOCKDOWN_E_SUCCESS) {
++			int vers[3] = {0, 0, 0};
++			char *s_version = NULL;
++			plist_get_string_val(p_version, &s_version);
++			if (s_version && sscanf(s_version, "%d.%d.%d", &vers[0], &vers[1], &vers[2]) >= 2) {
++				device->version = ((vers[0] & 0xFF) << 16) | ((vers[1] & 0xFF) << 8) | (vers[2] & 0xFF);
++			}
++			free(s_version);
++		}
++	}
++
+ 	userpref_read_pair_record(client_loc->udid, &pair_record);
+ 	if (pair_record) {
+ 		pair_record_get_host_id(pair_record, &host_id);
+@@ -723,18 +736,18 @@ LIBIMOBILEDEVICE_API lockdownd_error_t lockdownd_client_new_with_handshake(idevi
+ 	plist_free(pair_record);
+ 	pair_record = NULL;
+ 
+-	/* in any case, we need to validate pairing to receive trusted host status */
+-	ret = lockdownd_validate_pair(client_loc, NULL);
+-
+-	/* if not paired yet, let's do it now */
+-	if (LOCKDOWN_E_INVALID_HOST_ID == ret) {
+-		free(host_id);
+-		host_id = NULL;
+-		ret = lockdownd_pair(client_loc, NULL);
+-		if (LOCKDOWN_E_SUCCESS == ret) {
+-			ret = lockdownd_validate_pair(client_loc, NULL);
+-		} else if (LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING == ret) {
+-			debug_info("Device shows the pairing dialog.");
++	if (device->version < 0x070000) {
++		/* for older devices, we need to validate pairing to receive trusted host status */
++		ret = lockdownd_validate_pair(client_loc, NULL);
++
++		/* if not paired yet, let's do it now */
++		if (LOCKDOWN_E_INVALID_HOST_ID == ret) {
++			free(host_id);
++			host_id = NULL;
++			ret = lockdownd_pair(client_loc, NULL);
++			if (LOCKDOWN_E_SUCCESS == ret) {
++				ret = lockdownd_validate_pair(client_loc, NULL);
++			}
+ 		}
+ 	}
+ 
+-- 
+2.14.1
+
