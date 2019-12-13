@@ -60,8 +60,9 @@ Python bindings for libimobiledevice.
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
-%configure
-
+%configure2_5x --disable-static \
+               PYTHON=%{__python3} \
+               CYTHON=%{_bindir}/cython-3
 %make -j1
 
 %install
