@@ -55,7 +55,7 @@ Python bindings for libimobiledevice.
 
 %prep
 %setup -q
-%apply_patches
+%autopatch -p1
 
 sed -i 's#1.3.21#2.0.0#g' configure
 
