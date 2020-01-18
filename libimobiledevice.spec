@@ -5,25 +5,20 @@
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	1.2.0
-Release:	12
+Version:	1.2.1
+Release:	0.1
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
-Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
-Patch1:		344409e1d1ad917d377b256214c5411dda82e6b0...5a85432719fb3d18027d528f87d2a44b76fd3e12.patch
-Patch2:		0001-userpref-GnuTLS-Fix-3.6.0-SHA1-compatibility.patch
-Patch3:		0002-userpref-GnuTLS-Use-valid-serial-for-3.6.0.patch
-BuildRequires:	python-cython
+Source0:	http://www.libimobiledevice.org/downloads/%{name}-1.2.0.tar.bz2
+Patch1:		a7568f456d10f1aff61534e3216201a857865247...9b857fc42cdc4921e1e3f190c5ea907774e04758.patch
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
-BuildRequires:	pkgconfig(gnutls)
 BuildRequires:	pkgconfig(libplist)
 BuildRequires:	pkgconfig(libplist++)
 BuildRequires:	pkgconfig(libtasn1)
-BuildRequires:	pkgconfig(libusbmuxd)
+BuildRequires:	pkgconfig(libusbmuxd) >= 1.1.0
 BuildRequires:	pkgconfig(openssl)
-BuildRequires:	pkgconfig(python3)
 
 %description
 libimobiledevice is a library for connecting
@@ -46,21 +41,14 @@ Requires:	%{libname} = %{version}-%{release}
 %description -n %{devname}
 Files for development with libimobiledevice.
 
-%package -n python-imobiledevice
-Summary:	Python bindings for libimobiledevice
-Group:		Development/Python
-
-%description -n python-imobiledevice
-Python bindings for libimobiledevice.
-
 %prep
-%setup -q
+%setup -q -n %{name}-1.2.0
 %autopatch -p1
 
 sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
-%configure
+%configure --enable-openssl --without-cython
 
 %make -j1
 
@@ -68,7 +56,7 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %makeinstall_std
 
 %files
-%doc AUTHORS COPYING.LESSER README
+%doc AUTHORS COPYING.LESSER
 %{_bindir}/idevicebackup2
 %{_bindir}/idevicedate
 %{_bindir}/idevice_id
@@ -95,6 +83,3 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_libdir}/pkgconfig/libimobiledevice-1.0.pc
 %{_libdir}/libimobiledevice.so
 %{_includedir}/libimobiledevice
-
-%files -n python-imobiledevice
-%{python_sitearch}/imobiledevice*
