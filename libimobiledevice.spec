@@ -1,23 +1,24 @@
 %define major 6
-%define libname %mklibname imobiledevice %{major}
+%define api 1.0
+%define libname %mklibname imobiledevice %{api} %{major}
 %define devname %mklibname -d imobiledevice
 %define _disable_ld_no_undefined 1
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	1.2.1
-Release:	0.1
+Version:	1.3.0
+Release:	1
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
-Source0:	http://www.libimobiledevice.org/downloads/%{name}-1.2.0.tar.bz2
-Patch1:		a7568f456d10f1aff61534e3216201a857865247...9b857fc42cdc4921e1e3f190c5ea907774e04758.patch
+Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.bz2
+
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
-BuildRequires:	pkgconfig(libplist)
-BuildRequires:	pkgconfig(libplist++)
+BuildRequires:	pkgconfig(libplist-2.0) >= 2.2.0
+BuildRequires:	pkgconfig(libplist++-2.0) >= 2.2.0
 BuildRequires:	pkgconfig(libtasn1)
-BuildRequires:	pkgconfig(libusbmuxd) >= 1.1.0
+BuildRequires:	pkgconfig(libusbmuxd-2.0) >= 2.0.2
 BuildRequires:	pkgconfig(openssl)
 
 %description
@@ -42,18 +43,16 @@ Requires:	%{libname} = %{version}-%{release}
 Files for development with libimobiledevice.
 
 %prep
-%setup -q -n %{name}-1.2.0
+%setup -q
 %autopatch -p1
-
-sed -i 's#1.3.21#2.0.0#g' configure
 
 %build
 %configure --enable-openssl --without-cython
 
-%make -j1
+%make_build
 
 %install
-%makeinstall_std
+%make_install
 
 %files
 %doc AUTHORS COPYING.LESSER
@@ -74,12 +73,13 @@ sed -i 's#1.3.21#2.0.0#g' configure
 %{_bindir}/idevicename
 %{_bindir}/idevicedebug
 %{_bindir}/idevicenotificationproxy
+%{_bindir}/idevicesetlocation
 %{_mandir}/man1/idevice*.1.*
 
 %files -n %{libname}
-%{_libdir}/libimobiledevice.so.%{major}*
+%{_libdir}/%{name}-%{api}.so.%{major}{,.*}
 
 %files -n %{devname}
-%{_libdir}/pkgconfig/libimobiledevice-1.0.pc
-%{_libdir}/libimobiledevice.so
-%{_includedir}/libimobiledevice
+%{_libdir}/pkgconfig/%{name}-%{api}.pc
+%{_libdir}/%{name}-%{api}.so
+%{_includedir}/%{name}/
