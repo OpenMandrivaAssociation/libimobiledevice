@@ -42,6 +42,13 @@ Requires:	%{libname} = %{version}-%{release}
 %description -n %{devname}
 Files for development with libimobiledevice.
 
+%package -n %{name}-utilities
+Group:		System Utilities
+Summary:        Utilies for interrogating Apple devices
+Requires:       %{libname} = %{version}-%{release}
+%description -n %{name}-utilities
+Utilities to interrogate Apple IOS devices 
+
 %prep
 %setup -q
 %autopatch -p1
@@ -56,6 +63,11 @@ Files for development with libimobiledevice.
 
 %files
 %doc AUTHORS COPYING.LESSER
+
+%files -n %{libname}
+%{_libdir}/%{name}-%{api}.so.%{major}{,.*}
+
+%files -n %{name}-utilities
 %{_bindir}/idevicebackup2
 %{_bindir}/idevicedate
 %{_bindir}/idevice_id
@@ -75,9 +87,6 @@ Files for development with libimobiledevice.
 %{_bindir}/idevicenotificationproxy
 %{_bindir}/idevicesetlocation
 %{_mandir}/man1/idevice*.1.*
-
-%files -n %{libname}
-%{_libdir}/%{name}-%{api}.so.%{major}{,.*}
 
 %files -n %{devname}
 %{_libdir}/pkgconfig/%{name}-%{api}.pc
