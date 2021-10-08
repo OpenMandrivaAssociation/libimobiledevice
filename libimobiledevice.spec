@@ -6,12 +6,13 @@
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	020210921
-Release:	1
+Version:	1.3.0
+Release:	1.git.20210921.0
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
-Source0:	http://www.libimobiledevice.org/downloads/%{name}-20210921.tar.xz
+#Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.xz
+Source0:  %{name}-20210921.tar.xz
 
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
