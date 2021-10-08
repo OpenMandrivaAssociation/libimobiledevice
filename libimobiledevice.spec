@@ -52,7 +52,7 @@ Utilities to interrogate Apple IOS devices
 
 %prep
 %setup -q
-%autopatch -p1 %{name}-20210921
+%autopatch -n %{name}-20210921 -p1
 
 %build
 ./autogen.sh
