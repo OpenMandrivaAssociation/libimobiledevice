@@ -51,8 +51,8 @@ Requires:       %{libname} = %{version}-%{release}
 Utilities to interrogate Apple IOS devices 
 
 %prep
-%setup -q
-%autopatch -n %{name}-20210921 -p1
+%setup -qn %{name}-20210921
+%autopatch -p1
 
 %build
 ./autogen.sh
