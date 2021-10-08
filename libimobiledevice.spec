@@ -11,7 +11,7 @@ Release:	1
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
-Source0:	http://www.libimobiledevice.org/downloads/%{name}-0%{version}.tar.xz
+Source0:	http://www.libimobiledevice.org/downloads/%{name}-20210921.tar.xz
 
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
@@ -51,7 +51,7 @@ Utilities to interrogate Apple IOS devices
 
 %prep
 %setup -q
-%autopatch -p1 %{name}-0%{version}
+%autopatch -p1 %{name}-20210921
 
 %build
 ./autogen.sh
