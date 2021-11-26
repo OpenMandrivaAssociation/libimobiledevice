@@ -4,10 +4,12 @@
 %define devname %mklibname -d imobiledevice
 %define _disable_ld_no_undefined 1
 
+%define	git	20211124
+
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	02022021
-Release:	1
+Version:	1.3
+Release:	2.%{git}.0
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
@@ -20,6 +22,9 @@ BuildRequires:	pkgconfig(libplist++-2.0) >= 2.2.0
 BuildRequires:	pkgconfig(libtasn1)
 BuildRequires:	pkgconfig(libusbmuxd-2.0) >= 2.0.2
 BuildRequires:	pkgconfig(openssl)
+BuildRequires:	pkgconfig(libimobiledevice-glue-1.0)
+Obsoletes:      %{name} < 02022021-1
+Provides:       %{name} = 02022021-1
 
 %description
 libimobiledevice is a library for connecting
@@ -28,6 +33,8 @@ to Apple's iPhone or iPod touch devices
 %package -n %{libname}
 Group:		System/Libraries
 Summary:	Library for connecting to Apple iPhone and iPod touch
+Obsoletes:      %{name} < 02022021-1
+Provides:       %{name} = 02022021-1
 
 %description -n %{libname}
 libimobiledevice is a library for connecting
@@ -38,6 +45,8 @@ Summary:	Development package for libimobiledevice
 Group:		Development/C
 Provides:	%{name}-devel = %{version}-%{release}
 Requires:	%{libname} = %{version}-%{release}
+Obsoletes:      %{name} < 02022021-1
+Provides:       %{name} = 02022021-1
 
 %description -n %{devname}
 Files for development with libimobiledevice.
@@ -46,8 +55,11 @@ Files for development with libimobiledevice.
 Group:		System Utilities
 Summary:        Utilies for interrogating Apple devices
 Requires:       %{libname} = %{version}-%{release}
+Obsoletes:      %{name} < 02022021-1
+Provides:       %{name} = 02022021-1
 %description -n %{name}-utilities
 Utilities to interrogate Apple IOS devices 
+
 
 %prep
 %setup -q
