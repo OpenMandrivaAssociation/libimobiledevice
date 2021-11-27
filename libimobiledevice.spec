@@ -45,7 +45,7 @@ Summary:	Development package for libimobiledevice
 Group:		Development/C
 Provides:	%{name}-devel = %{version}-%{release}
 Requires:	%{libname} = %{version}-%{release}
-Obsoletes:      %{name} < 02022021-1
+#Obsoletes:      %{name} < 02022021-1
 #Provides:       %{name} = 02022021-1
 
 %description -n %{devname}
