@@ -55,7 +55,7 @@ Files for development with libimobiledevice.
 Group:		System Utilities
 Summary:        Utilies for interrogating Apple devices
 Requires:       %{libname} = %{version}-%{release}
-Obsoletes:      %{name} < 02022021-1
+#Obsoletes:      %{name} < 02022021-1
 #Provides:       %{name} = 02022021-1
 %description -n %{name}-utilities
 Utilities to interrogate Apple IOS devices 
