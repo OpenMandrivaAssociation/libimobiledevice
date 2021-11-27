@@ -23,7 +23,7 @@ BuildRequires:	pkgconfig(libtasn1)
 BuildRequires:	pkgconfig(libusbmuxd-2.0) >= 2.0.2
 BuildRequires:	pkgconfig(openssl)
 BuildRequires:	pkgconfig(libimobiledevice-glue-1.0)
-Obsoletes:      %{name} < 02022021-1
+#Obsoletes:      %{name} < 02022021-1
 #Provides:       %{name} = 02022021-1
 
 %description
@@ -33,7 +33,7 @@ to Apple's iPhone or iPod touch devices
 %package -n %{libname}
 Group:		System/Libraries
 Summary:	Library for connecting to Apple iPhone and iPod touch
-Obsoletes:      %{name} < 02022021-1
+#Obsoletes:      %{name} < 02022021-1
 #Provides:       %{name} = 02022021-1
 
 %description -n %{libname}
@@ -45,8 +45,6 @@ Summary:	Development package for libimobiledevice
 Group:		Development/C
 Provides:	%{name}-devel = %{version}-%{release}
 Requires:	%{libname} = %{version}-%{release}
-#Obsoletes:      %{name} < 02022021-1
-#Provides:       %{name} = 02022021-1
 
 %description -n %{devname}
 Files for development with libimobiledevice.
@@ -55,8 +53,7 @@ Files for development with libimobiledevice.
 Group:		System Utilities
 Summary:        Utilies for interrogating Apple devices
 Requires:       %{libname} = %{version}-%{release}
-#Obsoletes:      %{name} < 02022021-1
-#Provides:       %{name} = 02022021-1
+
 %description -n %{name}-utilities
 Utilities to interrogate Apple IOS devices 
 
