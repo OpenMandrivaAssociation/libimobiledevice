@@ -1,30 +1,30 @@
 %define major 6
 %define api 1.0
-%define libname %mklibname imobiledevice %{api} %{major}
+%define oldlibname %mklibname imobiledevice %{api} %{major}
+%define libname %mklibname imobiledevice %{api}
 %define devname %mklibname -d imobiledevice
 %define _disable_ld_no_undefined 1
 
-%define	git	20211124
+#define	git	20211124
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	1.3
-Release:	2.%{git}.0
+Version:	1.3.0
+Release:	%{?git:0.%{git}.}1
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		http://libimobiledevice.org/
-Source0:	http://www.libimobiledevice.org/downloads/%{name}-%{version}.tar.xz
+Source0:	https://github.com/libimobiledevice/libimobiledevice/releases/download/%{version}/libimobiledevice-%{version}.tar.bz2
+Patch0:		libimobiledevice-1.3.0-compile.patch
 
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
-BuildRequires:	pkgconfig(libplist-2.0) >= 2.2.0
-BuildRequires:	pkgconfig(libplist++-2.0) >= 2.2.0
+BuildRequires:	pkgconfig(libplist-2.0) >= 2.3.0
+BuildRequires:	pkgconfig(libplist++-2.0) >= 2.3.0
 BuildRequires:	pkgconfig(libtasn1)
 BuildRequires:	pkgconfig(libusbmuxd-2.0) >= 2.0.2
 BuildRequires:	pkgconfig(openssl)
 BuildRequires:	pkgconfig(libimobiledevice-glue-1.0)
-#Obsoletes:      %{name} < 02022021-1
-#Provides:       %{name} = 02022021-1
 
 %description
 libimobiledevice is a library for connecting
@@ -33,8 +33,7 @@ to Apple's iPhone or iPod touch devices
 %package -n %{libname}
 Group:		System/Libraries
 Summary:	Library for connecting to Apple iPhone and iPod touch
-#Obsoletes:      %{name} < 02022021-1
-#Provides:       %{name} = 02022021-1
+%rename %{oldlibname}
 
 %description -n %{libname}
 libimobiledevice is a library for connecting
@@ -59,13 +58,15 @@ Utilities to interrogate Apple IOS devices
 
 
 %prep
-%setup -q
-%autopatch -p1
+%autosetup -p1
+aclocal -I m4
+autoheader
+automake -a
+autoconf
 
-%build
-./autogen.sh
 %configure --enable-openssl --without-cython
 
+%build
 %make_build
 
 %install
@@ -96,7 +97,7 @@ Utilities to interrogate Apple IOS devices
 %{_bindir}/idevicedebug
 %{_bindir}/idevicenotificationproxy
 %{_bindir}/idevicesetlocation
-%{_mandir}/man1/idevice*.1.*
+%{_mandir}/man1/idevice*.1*
 
 %files -n %{devname}
 %{_libdir}/pkgconfig/%{name}-%{api}.pc
