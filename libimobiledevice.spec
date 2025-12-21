@@ -17,6 +17,11 @@ Url:		https://libimobiledevice.org/
 Source0:	https://github.com/libimobiledevice/libimobiledevice/releases/download/%{version}/libimobiledevice-%{version}.tar.bz2
 Patch0:		libimobiledevice-1.3.0-compile.patch
 
+BuildRequires:	autoconf
+BuildRequires:	automake
+BuildRequires:	libtool-base
+BuildRequires:	slibtool
+BuildRequires:	make
 BuildRequires:	swig
 BuildRequires:	pkgconfig(glib-2.0)
 BuildRequires:	pkgconfig(libplist-2.0) >= 2.3.0
