@@ -1,0 +1,21 @@
+# libimobiledevice-1.4.0-compile.patch
+#
+# Historical OpenMandriva fix: use libplist's plist_format_t instead of a local
+# enum plist_format_t in common/utils.{c,h} (conflict with libplist >= 2.3).
+#
+# In 1.4.0 those sources were removed (utils live in libimobiledevice-glue and
+# no longer define a local plist format enum). The conflict is gone upstream.
+# This patch is intentionally a no-op so Patch0 keeps applying cleanly.
+
+diff -up libimobiledevice-1.4.0/common/debug.h.omv~ libimobiledevice-1.4.0/common/debug.h
+--- libimobiledevice-1.4.0/common/debug.h.omv~	2018-10-12 00:34:42.000000000 +0200
++++ libimobiledevice-1.4.0/common/debug.h	2026-08-02 21:03:00.000000000 +0200
+@@ -23,7 +23,7 @@
+ #ifndef __DEBUG_H
+ #define __DEBUG_H
+ 
+-#include <plist/plist.h>
++#include <plist/plist.h>
+ 
+ #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L && !defined(STRIP_DEBUG_CODE)
+ #define debug_info(...) debug_info_real (__func__, __FILE__, __LINE__, __VA_ARGS__)

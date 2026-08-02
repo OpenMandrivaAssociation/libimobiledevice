@@ -9,13 +9,13 @@
 
 Summary:	Library for connecting to Apple iPhone and iPod touch
 Name:		libimobiledevice
-Version:	1.3.0
+Version:	1.4.0
 Release:	%{?git:0.%{git}.}2
 Group:		System/Libraries
 License:	LGPLv2+
 Url:		https://libimobiledevice.org/
 Source0:	https://github.com/libimobiledevice/libimobiledevice/releases/download/%{version}/libimobiledevice-%{version}.tar.bz2
-Patch0:		libimobiledevice-1.3.0-compile.patch
+Patch0:		libimobiledevice-1.4.0-compile.patch
 
 BuildRequires:	autoconf
 BuildRequires:	automake
@@ -30,6 +30,7 @@ BuildRequires:	pkgconfig(libtasn1)
 BuildRequires:	pkgconfig(libusbmuxd-2.0) >= 2.0.2
 BuildRequires:	pkgconfig(openssl)
 BuildRequires:	pkgconfig(libimobiledevice-glue-1.0)
+BuildRequires:	pkgconfig(libtatsu-1.0) >= 1.0.3
 
 %description
 libimobiledevice is a library for connecting
@@ -69,9 +70,9 @@ autoheader
 automake -a
 autoconf
 
-%configure --enable-openssl --without-cython
-
 %build
+# OpenSSL is the default SSL backend; --enable-openssl is no longer a valid flag
+%configure --without-cython
 %make_build
 
 %install
